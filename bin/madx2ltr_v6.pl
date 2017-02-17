@@ -220,7 +220,10 @@ while( <fpr1> ){
 			       $y1[$nip]     = $buf[$iy];       $py1[$nip] = $buf[$ipy];
 			       $betay1[$nip] = $buf[$ibety]; $alfay1[$nip] = $buf[$ialfy];
 			       $muy1[$nip]   = $buf[$imuy];     $dy1[$nip] = $buf[$idy];
-			       $dpy1[$nip]   = $buf[$idpy]; $nip = $nip+1;
+			       $dpy1[$nip]   = $buf[$idpy];
+                               printf "BB %s: betx=%G bety=%G x1=%G y1=%G",
+                                      $name1[$n],$betax1[$nip],$betay1[$nip],$x1[$nip],$y1[$nip];
+                               $nip = $nip+1;
 			     }
 	    case "RFCAVITY"  { $name1[$n]="$buf[$iname].$n"; $nameR[$nrf] = $name1[$n]; 
 			       $lrf[$nrf]  = $buf[$il];       $volt[$nrf] = $buf[$ivolt]; 
@@ -644,16 +647,7 @@ printf "Machine length = %12.10f m \n",$circumf;
 #--- RF cavities ---------------------------------
 for($i=0;$i<$nrf;$i++){
     printf fpw "\n# ".$nameR[$i].": EXT_RFCV\n";
-    if( $lag[$i] eq 0.5){
-      printf fpw "Value_1: %G \n", $volt[$i]/$energy/1.0E3*$beta;
-    }
-    elsif( $lag[$i] eq 0.0){
-      printf fpw "Value_1: %G \n", -$volt[$i]/$energy/1.0E3*$beta;
-    }
-    else{
-      printf "RF only defined for lag=0.5 or lag=0.0! Abortings!";
-      exit(0);
-    }
+    printf fpw "Value_1: %G \n", $volt[$i]/$energy/1.0E3*$beta;
     printf fpw "Value_2: %G \n", 2.99792458E10*$beta/$freq[$i]/1.0E6;
 }
 #
