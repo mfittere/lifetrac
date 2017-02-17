@@ -1,3 +1,5 @@
+set,format="22.5e";
+
 ON_BB_CHARGE:=0;
 
 if (NRJ<4999.9999) {VRF400:=8. ;LAGRF400.B1=0.5;LAGRF400.B2=0.;};
