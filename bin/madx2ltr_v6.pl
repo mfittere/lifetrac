@@ -644,7 +644,16 @@ printf "Machine length = %12.10f m \n",$circumf;
 #--- RF cavities ---------------------------------
 for($i=0;$i<$nrf;$i++){
     printf fpw "\n# ".$nameR[$i].": EXT_RFCV\n";
-    printf fpw "Value_1: %G \n", $volt[$i]/$energy/1.0E3*$beta;
+    if( $lag[$i] eq 0.5){
+      printf fpw "Value_1: %G \n", $volt[$i]/$energy/1.0E3*$beta;
+    }
+    elsif( $lag[$i] eq 0.0){
+      printf fpw "Value_1: %G \n", -$volt[$i]/$energy/1.0E3*$beta;
+    }
+    else{
+      printf "RF only defined for lag=0.5 or lag=0.0! Abortings!";
+      exit(0);
+    }
     printf fpw "Value_2: %G \n", 2.99792458E10*$beta/$freq[$i]/1.0E6;
 }
 #
