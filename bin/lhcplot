@@ -1,0 +1,187 @@
+#!/bin/bash
+
+if [ $# == 0 ]; then
+echo "This is LIFETRAC output plotting script"
+echo "by A.Valishev (x2875)"
+echo " "
+echo "usage: $0 dir1 dir2 ..."
+exit 0;
+fi
+
+MYDIR=`pwd`
+LTRDEFAULT="lhc.ltr"
+LTRFILE=${LTRFILE:-$LTRDEFAULT}
+echo "lplot version for LHC, time scale based on circumference of 27km"
+
+i=1
+for dir in $@ ; do 
+echo "> Processing directory: ${dir}"
+cd ${dir}
+
+j=2
+while ((`pwd | cut -f $j -d'/'| wc -m`>1)) ; do
+j=$(($j+1))
+done
+j=$(($j-1))
+pn[$i]=`pwd | cut -f $j -d'/'`
+
+IP=`output.sh $LTRFILE | tail -2 | head -1 | cut -f 2 -d':'`
+echo ">> Monitoring IP: ${IP}"
+output.sh $LTRFILE ${IP}
+steplen=`grep Boundary $LTRFILE | cut -f 3 -d'='`
+nsteps=${xrange:-`grep Step $LTRFILE |tail -1|cut -f 2 -d'_'`}
+gamma=`grep Gamma_weak $LTRFILE | cut -f 3 -d' '`
+echo "gamma= $gamma"
+cd ${MYDIR}
+echo ">> Plot name: ${pn[$i]}"
+i=$(($i+1))
+done
+
+echo "set xlabel 'Time (s)'" > tmp.gp
+echo "set ylabel 'Normalized Beam Intensity'" >> tmp.gp
+echo "set key right top box" >> tmp.gp
+echo "set grid" >> tmp.gp
+echo "t0=0.000088863" >> tmp.gp
+echo "dt=t0*$steplen" >> tmp.gp
+echo "tt=dt*$nsteps" >> tmp.gp
+#xtic=`echo "$tt/5"|bc -l|cut -f 1 -d'.'`
+#echo "set xtics $xtic" >> tmp.gp
+echo "set xrange [0:tt]" >> tmp.gp
+
+echo "plot \\" >> tmp.gp
+i=1
+for dir in $@ ; do 
+if (($i<$#)) ; then
+echo "'${dir}/intensity.txt' u (dt*\$0):1 title '${pn[$i]}' w l lw 3,\\" >> tmp.gp
+else
+echo "'${dir}/intensity.txt' u (dt*\$0):1 title '${pn[$i]}' w l lw 3" >> tmp.gp
+fi
+i=$(($i+1))
+done
+
+echo "pause -1 'ok'" >> tmp.gp
+echo "set term postscript eps enhanced color 'Times-Roman' 21" >> tmp.gp
+echo "set output 'intensity.eps'" >> tmp.gp
+echo "replot" >> tmp.gp
+echo "set term x11" >> tmp.gp
+echo "set output" >> tmp.gp
+#
+echo "set ylabel 'Loss Rate'" >> tmp.gp
+
+echo "plot \\" >> tmp.gp
+i=1
+for dir in $@ ; do 
+if (($i<$#)) ; then
+echo "'${dir}/lossrate.txt' u (dt*\$0):1 title '${pn[$i]}' w l lw 3,\\" >> tmp.gp
+else
+echo "'${dir}/lossrate.txt' u (dt*\$0):1 title '${pn[$i]}' w l lw 3" >> tmp.gp
+fi
+i=$(($i+1))
+done
+
+echo "pause -1 'ok'" >> tmp.gp
+echo "set term postscript eps enhanced color 'Times-Roman' 21" >> tmp.gp
+echo "set output 'lossrate.eps'" >> tmp.gp
+echo "replot" >> tmp.gp
+echo "set term x11" >> tmp.gp
+echo "set output" >> tmp.gp
+echo "set ylabel 'Horizontal Emittance (um)'" >> tmp.gp
+echo "set key left top box" >> tmp.gp
+
+echo "plot \\" >> tmp.gp
+i=1
+for dir in $@ ; do 
+if (($i<$#)) ; then
+echo "'${dir}/emit.txt' u (dt*\$0):(\$1*$gamma*1e4) title '${pn[$i]}' w l lw 3,\\" >> tmp.gp
+else
+echo "'${dir}/emit.txt' u (dt*\$0):(\$1*$gamma*1e4) title '${pn[$i]}' w l lw 3" >> tmp.gp
+fi
+i=$(($i+1))
+done
+
+echo "pause -1 'ok'" >> tmp.gp
+echo "set term postscript eps enhanced color 'Times-Roman' 21" >> tmp.gp
+echo "set output 'emitx.eps'" >> tmp.gp
+echo "replot" >> tmp.gp
+echo "set term x11" >> tmp.gp
+echo "set output" >> tmp.gp
+echo "set ylabel 'Vertical Emittance (um)'" >> tmp.gp
+
+echo "plot \\" >> tmp.gp
+i=1
+for dir in $@ ; do 
+if (($i<$#)) ; then
+echo "'${dir}/emit.txt' u (dt*\$0):(\$2*$gamma*1e4) title '${pn[$i]}' w l lw 3,\\" >> tmp.gp
+else
+echo "'${dir}/emit.txt' u (dt*\$0):(\$2*$gamma*1e4) title '${pn[$i]}' w l lw 3" >> tmp.gp
+fi
+i=$(($i+1))
+done
+
+echo "pause -1 'ok'" >> tmp.gp
+echo "set term postscript eps enhanced color 'Times-Roman' 21" >> tmp.gp
+echo "set output 'emity.eps'" >> tmp.gp
+echo "replot" >> tmp.gp
+echo "set term x11" >> tmp.gp
+echo "set output" >> tmp.gp
+echo "set ylabel 'Emittance (um)'" >> tmp.gp
+
+echo "plot \\" >> tmp.gp
+i=1
+for dir in $@ ; do
+if (($i<$#)) ; then
+echo "'${dir}/emit.txt' u (dt*\$0):(\$1*$gamma*1e4) title '${pn[$i]} x' w l lw 3,\\" >> tmp.gp
+echo "'${dir}/emit.txt' u (dt*\$0):(\$2*$gamma*1e4) title '${pn[$i]} y' w l lw 3,\\" >> tmp.gp
+else
+echo "'${dir}/emit.txt' u (dt*\$0):(\$1*$gamma*1e4) title '${pn[$i]} x' w l lw 3,\\" >> tmp.gp
+echo "'${dir}/emit.txt' u (dt*\$0):(\$2*$gamma*1e4) title '${pn[$i]} y' w l lw 3" >> tmp.gp
+fi
+i=$(($i+1))
+done
+
+echo "pause -1 'ok'" >> tmp.gp
+echo "set term postscript eps enhanced color 'Times-Roman' 21" >> tmp.gp
+echo "set output 'emit.eps'" >> tmp.gp
+echo "replot" >> tmp.gp
+
+echo "set term x11" >> tmp.gp
+echo "set output" >> tmp.gp
+echo "set ylabel 'Bunch Length (cm)'" >> tmp.gp
+
+echo "plot \\" >> tmp.gp
+i=1
+for dir in $@ ; do 
+if (($i<$#)) ; then
+echo "'${dir}/sigm.txt' u (dt*\$0):1 title '${pn[$i]}' w l lw 3,\\" >> tmp.gp
+else
+echo "'${dir}/sigm.txt' u (dt*\$0):1 title '${pn[$i]}' w l lw 3" >> tmp.gp
+fi
+i=$(($i+1))
+done
+
+echo "pause -1 'ok'" >> tmp.gp
+echo "set term postscript eps enhanced color 'Times-Roman' 21" >> tmp.gp
+echo "set output 'sigm.eps'" >> tmp.gp
+echo "replot" >> tmp.gp
+echo "set term x11" >> tmp.gp
+echo "set output" >> tmp.gp
+echo "set ylabel 'Luminosity'" >> tmp.gp
+echo "set key right top box" >> tmp.gp
+
+echo "plot \\" >> tmp.gp
+i=1
+for dir in $@ ; do 
+if (($i<$#)) ; then
+echo "'${dir}/luminosity.txt' u (dt*\$0):1 title '${pn[$i]}' w l lw 3,\\" >> tmp.gp
+else
+echo "'${dir}/luminosity.txt' u (dt*\$0):1 title '${pn[$i]}' w l lw 3" >> tmp.gp
+fi
+i=$(($i+1))
+done
+
+echo "pause -1 'ok'" >> tmp.gp
+echo "set term postscript eps enhanced color 'Times-Roman' 21" >> tmp.gp
+echo "set output 'luminosity.eps'" >> tmp.gp
+echo "replot" >> tmp.gp
+
+gnuplot tmp.gp
