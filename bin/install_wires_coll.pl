@@ -22,7 +22,7 @@ while( <fpr1> ){
 close(fpr1);
 printf "done.\n";
 #
-if($i != 6){ printf "Read wrong number of parameters %d, must be 6, exiting.\n",$i; exit(0);};
+if($i != 6){ printf "Read wrong number of parameters %d, must be 6 (l+r x 3 param), exiting.\n",$i; exit(0);};
 #
 printf "Installing elements\n";
 #
