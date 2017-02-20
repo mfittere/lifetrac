@@ -8,4 +8,4 @@ echo "usage: $0 task_file"
 exit 0;
 fi
 
-perl ~/lifetrac/bin/madx2ltr.pl out.lattice esave out.strong $1
+perl ~/lifetrac/bin/madx2ltr.pl out.lattice esave out.strong out.bbwire $1
