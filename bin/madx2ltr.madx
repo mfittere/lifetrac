@@ -1,4 +1,4 @@
-set,format="22.5e";
+set,format="22.14e";
 
 ON_BB_CHARGE:=0;
 

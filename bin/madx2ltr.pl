@@ -80,16 +80,27 @@ if( ($ARGV[0] eq "") || ($ARGV[1] eq "") || ($ARGV[2] eq "") || ($ARGV[3] eq "")
     print "usage: perl madx2ltr.pl lattice errors strong.optics lifetracfile\n ";
     exit(0);
 }
-open(fpr1, $ARGV[0]) || die "Cannot open $ARGV[0] $!\n";
-open(fpr2, $ARGV[1]) || die "Cannot open $ARGV[1] $!\n";
-open(fpr3, $ARGV[2]) || die "Cannot open $ARGV[2] $!\n";
+# weak beam lattice
+open(fpr1, "<".$ARGV[0]) || die "Cannot open $ARGV[0] $!\n";
+# weak beam errors
+open(fpr2, "<".$ARGV[1]) || die "Cannot open $ARGV[1] $!\n";
+# strong beam bb collisions
+open(fpr3, "<".$ARGV[2]) || die "Cannot open $ARGV[2] $!\n";
 open(fpw, ">".$ARGV[3]) || die "Cannot open $ARGV[3] $!\n";
 
 #------------------------------------------------------------------------------
 printf "Reading machine lattice file...\n";
+# delete all ",.,_ in names
+# weak beam
+# iterator for reading in file
 $n=0;
 $fswitch=0;
-$nip=0; $ndrift=0; $nmult=0; $nzerom=0; $nrf=0; $nsol=0; $ndpdg=0; $nkick=0; $nelens=0;
+# number of IPs (fpr1)
+# number of IPs, drifts, multipoles, multipoles with 0 length, RF, 
+# solenoid, dipole edges, correctors (kickers), 
+# crab cavities (tkicker), elens (marker named HEBC)
+$nip=0; $ndrift=0; $nmult=0; $nzerom=0; $nrf=0; $nsol=0; $ndpdg=0;
+$nkick=0; $ncc=0;  $nelens=0;
 while( <fpr1> ){
     @buf=split ;
     if( ($buf[0] eq '@') && ($buf[1] eq 'PARTICLE') ){ 
@@ -200,6 +211,7 @@ while( <fpr1> ){
     if( ($buf[0] ne '@') && ($buf[0] ne '$') && ($buf[0] ne '*') ){
 	if( $fswitch == 0 ){ printf "No format line in input file, exiting \n"; exit 1;}
 	$nelm1[$n] =$n; 
+  # delete " and . in name and keyword
         $buf[$iname] =~ tr/\"//d;
         $buf[$iname] =~ tr/\_//d;
         $buf[$iname] =~ s/\.//g;
@@ -312,6 +324,10 @@ close(fpr1);
 #
 #--- 
 printf "Reading multipole errors file...\n";
+# weak beam: read errors up to 20th order, only errors from
+# class=multipole are used (see madx2ltr.madx)
+# number of multipoles: nm = all multipoles, nsm = skews, nnm = normal
+# iterator for reading in file
 $n=0;
 while( <fpr2> ){
     @buf=split ;
@@ -391,10 +407,15 @@ while( <fpr2> ){
     }
 }
 $nm=$n;
-printf "Number of multipole errors read: %d \n", $n;
+printf "Number of multipole errors read: %d \n", $nm;
 close(fpr2);
 #
 #--- 
+# read strong optics file
+# strong beam: read only beam-beam elements 
+# number of IPs
+$nsip =0;
+# delete all ",.,_ in names
 printf "Reading strong optics file...\n";
 $n=0;
 $fswitch=0;
@@ -499,16 +520,17 @@ while( <fpr3> ){
 	$n=$n+1;
     }
 }
-$n2=$n;
-printf "Number of IPs read from strong optics file: %d \n", $n2;
+$nsip=$n;
+printf "Number of IPs read from strong optics file: %d \n", $nsip;
 close(fpr3);
-for($j=0;$j<$n2;$j++){ printf "%s \n",$name2[$j]; }
+for($j=0;$j<$nsip;$j++){ printf "%s \n",$name2[$j]; }
 #
 #
-if($nip != $n2 ) { printf "Numbers of IPs do not match. Exiting.\n"; exit(0);}
+if($nip != $nsip ) { printf "Numbers of IPs do not match. Exiting.\n"; exit(0);}
 #
 #--- Creating and writing output ---------------------------------
 #
+# conversion m <-> cm
 $kp=1.0E+2;
 $km=1.0E-2;
 printf fpw "File: lhc\n";
@@ -596,7 +618,7 @@ for($i=0;$i<$nip;$i++){
 	printf fpw "Lumi: Off\n";
 	printf fpw "Slices:  1\n";
     }
-    for($j=0;$j<$n2;$j++){ if($name2[$j] eq $nameI[$i]){ $jj=$j; } }
+    for($j=0;$j<$nsip;$j++){ if($name2[$j] eq $nameI[$i]){ $jj=$j; } }
 #--- separation and angle --------
     $x[$i]=-$x2[$jj]*$kp;
     $y[$i]=-$y2[$jj]*$kp;
