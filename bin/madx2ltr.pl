@@ -76,8 +76,8 @@ $omegaCC=8.399928934E-2;
 $bbwire=0.03;
 #
 #--- opening files
-if( ($ARGV[0] eq "") || ($ARGV[1] eq "") || ($ARGV[2] eq "") || ($ARGV[3] eq "")){
-    print "usage: perl madx2ltr.pl lattice errors strong.optics lifetracfile\n ";
+if( ($ARGV[0] eq "") || ($ARGV[1] eq "") || ($ARGV[2] eq "") || ($ARGV[3] eq "") || ($ARGV[4] eq "")){
+    print "usage: perl madx2ltr.pl lattice errors strong.optics wire.param lifetracfile\n ";
     exit(0);
 }
 # weak beam lattice
@@ -86,7 +86,8 @@ open(fpr1, "<".$ARGV[0]) || die "Cannot open $ARGV[0] $!\n";
 open(fpr2, "<".$ARGV[1]) || die "Cannot open $ARGV[1] $!\n";
 # strong beam bb collisions
 open(fpr3, "<".$ARGV[2]) || die "Cannot open $ARGV[2] $!\n";
-open(fpw, ">".$ARGV[3]) || die "Cannot open $ARGV[3] $!\n";
+open(fpr4, "<".$ARGV[3]) || die "Cannot open $ARGV[3] $!\n";
+open(fpw, ">".$ARGV[4]) || die "Cannot open $ARGV[4] $!\n";
 
 #------------------------------------------------------------------------------
 printf "Reading machine lattice file...\n";
@@ -100,7 +101,7 @@ $fswitch=0;
 # solenoid, dipole edges, correctors (kickers), 
 # crab cavities (tkicker), elens (marker named HEBC)
 $nip=0; $ndrift=0; $nmult=0; $nzerom=0; $nrf=0; $nsol=0; $ndpdg=0;
-$nkick=0; $ncc=0;  $nelens=0;
+$nkick=0; $ncc=0;  $nelens=0; $nwire=0;
 while( <fpr1> ){
     @buf=split ;
     if( ($buf[0] eq '@') && ($buf[1] eq 'PARTICLE') ){ 
@@ -224,7 +225,7 @@ while( <fpr1> ){
 			       $ndrift=$ndrift+1; 
 			     }
 	    case "BEAMBEAM"  { $name1[$n]=$buf[$iname]; $name1[$n]=~ s/B1//g; $name1[$n]=~ s/B2//g;
-                               $nameI[$nip]= $name1[$n];  
+                               $nameI[$nip]  = $name1[$n];  
 			       $x1[$nip]     = $buf[$ix];    $px1[$nip]    = $buf[$ipx];
 			       $betax1[$nip] = $buf[$ibetx]; $alfax1[$nip] = $buf[$ialfx];
 			       $mux1[$nip]   = $buf[$imux];  $dx1[$nip]    = $buf[$idx];
@@ -232,7 +233,13 @@ while( <fpr1> ){
 			       $y1[$nip]     = $buf[$iy];       $py1[$nip] = $buf[$ipy];
 			       $betay1[$nip] = $buf[$ibety]; $alfay1[$nip] = $buf[$ialfy];
 			       $muy1[$nip]   = $buf[$imuy];     $dy1[$nip] = $buf[$idy];
-			       $dpy1[$nip]   = $buf[$idpy]; $nip = $nip+1;
+			       $dpy1[$nip]   = $buf[$idpy];
+                               $nip = $nip+1;
+                               # if IP is wire
+                               if( $name1[$n]=~/wire/i ) {
+                                   $nameW[$nwire] = $name1[$n];
+                                   $nwire = $nwire+1;
+                               }
 			     }
 	    case "RFCAVITY"  { $name1[$n]="$buf[$iname].$n"; $nameR[$nrf] = $name1[$n]; 
 			       $lrf[$nrf]  = $buf[$il];       $volt[$nrf] = $buf[$ivolt]; 
@@ -533,7 +540,54 @@ for($j=0;$j<$nsip;$j++){ printf "%s \n",$name2[$j]; }
 #
 #
 if($nip != $nsip ) { printf "Numbers of IPs do not match. Exiting.\n"; exit(0);}
-#
+
+# read wire parameter file containing charge, sigx, sigy, xma, yma
+# convert already to lifetrac sign convention of offset
+# number of wires found
+$wnc = 0; $wnx =0; $wny =0;
+# count line number, number of defined wire paramters = $n/3 (charge, xma,yma)
+$n = 0;
+printf "Reading wire parameter file...\n";
+while( <fpr4> ){
+    @buf=split ;
+    $n = $n +1;
+    # extract name
+    $wname =$buf[0];
+    $wname =~ tr/\"//d;
+    $wname =~ tr/\_//d;
+    $wname =~ s/\.//g;
+    $wname =~ s/\$//g;
+    $wname =~ s/->charge//g;
+    $wname =~ s/->xma//g;
+    $wname =~ s/->yma//g;
+    # loop over wires found in lattice file
+    for($i=0;$i<$nwire;$i++){
+        if($wname=~/$nameW[$i]/i){
+            if($buf[0]=~/charge/){
+                $wcharge[$i] = $buf[2];
+                $wnc = $wnc +1;
+            }
+            if($buf[0]=~/xma/){
+                $wxma[$i] = -$buf[2];
+                $wnx = $wnx +1;
+            }
+            if($buf[0]=~/yma/){
+                $wyma[$i] = -$buf[2];
+                $wny = $wny +1;
+            }
+        }
+    }
+}
+if ( $wnc != $nwire || $wnx != $nwire || $wny != $nwire ) { printf "Not all wires defined in the lattice could be found in %s. Exiting.\n",$ARGV[3]; exit(0); } 
+    printf "All wires found, in total %d wires\n",$wnc;
+    for($i=0; $i<$nwire;$i++){
+        printf "wire %s: charge=%G, xma=%G, yma=%G\n",$nameW[$i],$wcharge[$i],$wxma[$i],$wyma[$i]; 
+}
+if ( $n/3.0 != $nwire){ 
+    printf "WARNING: Number of wires defined in %s (nwire = %G) does not match number of wires in %s (nwire = %G)\n",$ARGV[3],$n/5.0,$ARGV[0],$nwire;
+}
+close(fpr4);
+
 #--- Creating and writing output ---------------------------------
 #
 # conversion m <-> cm
@@ -567,6 +621,7 @@ printf fpw "\n# Watch_point: WATCH\n";
 #--- IPs ----------------------------------------
 printf "Name_I Name_S Xsep Ysep Px Py SigX SigY BetX1 BetY1 DX1 DY1\n";
 # compute beta-functions at wire compensator
+# assume fixed wire size
 $bxwire=$bbwire**2/$kp/$emitx;
 $bywire=$bbwire**2/$kp/$emity;
 #
@@ -615,7 +670,15 @@ for($i=0;$i<$nip;$i++){
 	printf fpw "\n# ".$nameI[$i].": IP\n";
     }
     printf fpw "Latt_str: L_".$nameI[$i]."_s\n";
-    printf fpw "Current: 1\n";
+    if($nameI[$i] =~/wire/i){
+        for($j=0;$j<$nwire;$j++){
+            if($nameI[$i] eq $nameW[$j]){
+                printf fpw "Current: %G\n",$wcharge[$j];
+            } 
+        }
+    } else {
+        printf fpw "Current: 1\n";
+    }
     printf fpw "Norm: Off\n";
     if($nameI[$i] eq $mainIP || $nameI[$i] eq $mainIP2 || $nameI[$i] eq "BBHO80"){
 	printf fpw "Lumi: On\n";
@@ -635,19 +698,28 @@ for($i=0;$i<$nip;$i++){
 #   $y[$i]=($y1[$i]-$y2[$jj])*$kp;
 #   $px[$i]=($px1[$i]-$px2[$jj]);
 #   $py[$i]=($py1[$i]-$py2[$jj]);
+    # HO interactions
     if($nameI[$i] eq $mainIP || $nameI[$i] eq $mainIP2 ){
 	printf fpw "Shift  (cm):         (x)=%G (y)=%G\n",$x[$i],$y[$i];
+        printf fpw "Angle (rad):         (x)=%G (y)=%G\n",$px[$i],$py[$i];
+    }elsif($nameI[$i] =~/wire/i){
+        for($j=0;$j<$nwire;$j++){
+            if($nameI[$i] eq $nameW[$j]){
+                printf fpw "Shift  (cm):         (x)=%G (y)=%G (comp)=1\n",$wxma[$j],$wyma[$j];
+                printf fpw "Angle (rad):         (x)=0.0 (y)=0.0\n";
+            } 
+        }
     }else{
 	printf fpw "Shift  (cm):         (x)=%G (y)=%G (comp)=1\n",$x[$i],$y[$i];
+        printf fpw "Angle (rad):         (x)=%G (y)=%G\n",$px[$i],$py[$i];
     };
-    printf fpw "Angle (rad):         (x)=%G (y)=%G\n",$px[$i],$py[$i];
-    if($nameI[$i] eq $mainIP ){
+    if($nameI[$i] eq $mainIP && $ncc != 0){
         printf fpw "Crab  (rad): (r)=%g (a)=%G\n",$crab_r1,$crab_a1;}
-    if($nameI[$i] eq $mainIP2 ){
+    if($nameI[$i] eq $mainIP2 && $ncc != 0){
         printf fpw "Crab  (rad): (r)=%g (a)=%G\n",$crab_r5,$crab_a5;}
 #--- strong lattice parameters ------
     printf fpw "\n# L_".$nameI[$i]."_s: LATT\n";
-    if($nameI[$i] =~ 'BBWIRE'){
+    if($nameI[$i] =~/wire/i){
     printf fpw "Beta   (cm):         (x)=%f (y)=%f\n",$bxwire,$bywire;
     }else{
     printf fpw "Beta   (cm):         (x)=%f (y)=%f\n",$betax2[$jj]*$kp,$betay2[$jj]*$kp;
@@ -747,5 +819,5 @@ for($i=0;$i<$nmult;$i++){
 printf "Number of multipole errors attached: %d\n", $nattch;
 #
 printf fpw "\n_______________________End_Working_Parameters___________________________\n";
-#
+
 close(fpw);
