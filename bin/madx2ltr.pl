@@ -237,10 +237,16 @@ while( <fpr1> ){
 	    case "RFCAVITY"  { $name1[$n]="$buf[$iname].$n"; $nameR[$nrf] = $name1[$n]; 
 			       $lrf[$nrf]  = $buf[$il];       $volt[$nrf] = $buf[$ivolt]; 
 			       $freq[$nrf] = $buf[$ifreq];     $lag[$nrf] = $buf[$ilag]; 
-                               if( $volt[$nrf] == 0 ){ $n=$n-1; }
-			       else{ printf "RFCV: v=%G f=%G lag=%G\n",
-                                            $volt[$nrf],$freq[$nrf],$lag[$nrf];
-                                     $nrf=$nrf+1; }
+                               if( $volt[$nrf] == 0 ){
+                                   $n=$n-1;
+                               } else{
+                                   if ( $lag[$nrf] == 0.0 ){
+                                       $volt[$nrf] = -$volt[$nrf]
+                                   }
+                                   printf "RFCV: v=%G f=%G lag=%G (voltage sign flipped for lag=0)\n",
+                                       $volt[$nrf],$freq[$nrf],$lag[$nrf];
+                                   $nrf=$nrf+1;
+                               }
 			     }
 	    case "SOLENOID"  { $name1[$n]="$buf[$iname].$n"; $nameS[$nsol]=$name1[$n]; 
 			       $ksi[$nsol]=$buf[$iksi]; $ks[$nsol]=$buf[$iksi]/$buf[$ilrad];
@@ -666,16 +672,7 @@ printf "Machine length = %12.10f m \n",$circumf;
 #--- RF cavities ---------------------------------
 for($i=0;$i<$nrf;$i++){
     printf fpw "\n# ".$nameR[$i].": EXT_RFCV\n";
-    if( $lag[$i] eq 0.5){
-      printf fpw "Value_1: %G \n", $volt[$i]/$energy/1.0E3*$beta;
-    }
-    elsif( $lag[$i] eq 0.0){
-      printf fpw "Value_1: %G \n", -$volt[$i]/$energy/1.0E3*$beta;
-    }
-    else{
-      printf "RF only defined for lag=0.5 or lag=0.0! Abortings!";
-      exit(0);
-    }
+    printf fpw "Value_1: %G \n", $volt[$i]/$energy/1.0E3*$beta;
     printf fpw "Value_2: %G \n", 2.99792458E10*$beta/$freq[$i]/1.0E6;
 }
 #
