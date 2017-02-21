@@ -1,4 +1,6 @@
-set,format="22.5e";
+set,format="22.14e";
+
+ON_BB_CHARGE_AUX = ON_BB_CHARGE; ! save value of bb charge
 
 ON_BB_CHARGE:=0;
 
@@ -485,4 +487,5 @@ select,flag=twiss,class=beambeam,pattern=^BBWIRE;
 twiss,file="out.strong";
 };
 
+ON_BB_CHARGE = ON_BB_CHARGE_AUX; ! save value of bb charge
 assign,echo=terminal;
