@@ -74,7 +74,9 @@ $mainIP2='BBHO50';
 $omegaCC=8.399928934E-2;
 # wire size (cm)
 $bbwire=0.03;
-#
+# conversion m <-> cm
+$kp=1.0E+2;
+$km=1.0E-2;
 #--- opening files
 if( ($ARGV[0] eq "") || ($ARGV[1] eq "") || ($ARGV[2] eq "") || ($ARGV[3] eq "") || ($ARGV[4] eq "")){
     print "usage: perl madx2ltr.pl lattice errors strong.optics wire.param lifetracfile\n ";
@@ -568,11 +570,11 @@ while( <fpr4> ){
                 $wnc = $wnc +1;
             }
             if($buf[0]=~/xma/){
-                $wxma[$i] = -$buf[2];
+                $wxma[$i] = -$buf[2]*$kp;
                 $wnx = $wnx +1;
             }
             if($buf[0]=~/yma/){
-                $wyma[$i] = -$buf[2];
+                $wyma[$i] = -$buf[2]*$kp;
                 $wny = $wny +1;
             }
         }
@@ -590,9 +592,6 @@ close(fpr4);
 
 #--- Creating and writing output ---------------------------------
 #
-# conversion m <-> cm
-$kp=1.0E+2;
-$km=1.0E-2;
 printf fpw "File: lhc\n";
 printf fpw "\n___________________________Working_Parameters___________________________\n";
 printf fpw "Transport:  LIN\n";
