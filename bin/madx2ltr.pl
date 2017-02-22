@@ -700,18 +700,16 @@ for($i=0;$i<$nip;$i++){
     # HO interactions
     if($nameI[$i] eq $mainIP || $nameI[$i] eq $mainIP2 ){
 	printf fpw "Shift  (cm):         (x)=%G (y)=%G\n",$x[$i],$y[$i];
-        printf fpw "Angle (rad):         (x)=%G (y)=%G\n",$px[$i],$py[$i];
     }elsif($nameI[$i] =~/wire/i){
         for($j=0;$j<$nwire;$j++){
             if($nameI[$i] eq $nameW[$j]){
                 printf fpw "Shift  (cm):         (x)=%G (y)=%G (comp)=1\n",$wxma[$j],$wyma[$j];
-                printf fpw "Angle (rad):         (x)=0.0 (y)=0.0\n";
             } 
         }
     }else{
 	printf fpw "Shift  (cm):         (x)=%G (y)=%G (comp)=1\n",$x[$i],$y[$i];
-        printf fpw "Angle (rad):         (x)=%G (y)=%G\n",$px[$i],$py[$i];
     };
+    printf fpw "Angle (rad):         (x)=%G (y)=%G\n",$px[$i],$py[$i];
     if($nameI[$i] eq $mainIP && $ncc != 0){
         printf fpw "Crab  (rad): (r)=%g (a)=%G\n",$crab_r1,$crab_a1;}
     if($nameI[$i] eq $mainIP2 && $ncc != 0){
@@ -719,14 +717,14 @@ for($i=0;$i<$nip;$i++){
 #--- strong lattice parameters ------
     printf fpw "\n# L_".$nameI[$i]."_s: LATT\n";
     if($nameI[$i] =~/wire/i){
-    printf fpw "Beta   (cm):         (x)=%f (y)=%f\n",$bxwire,$bywire;
+        printf fpw "Beta   (cm):         (x)=%f (y)=%f\n",$bxwire,$bywire;
     }else{
-    printf fpw "Beta   (cm):         (x)=%f (y)=%f\n",$betax2[$jj]*$kp,$betay2[$jj]*$kp;
-    printf fpw "Alpha:               (x)=%f (y)=%f\n",$alfax2[$jj],$alfay2[$jj];
-    printf fpw "Disp   (cm):         (x)=%f (y)=%f\n",$dx2[$jj]*$kp,$dy2[$jj]*$kp;
-    printf fpw "Disp_drv:            (x)=%f (y)=%f\n",$dpx2[$jj],$dpy2[$jj];
-    $bbsigx=sqrt($betax2[$jj]*$kp*$emitx*$kp+($dx2[$jj]*$kp*$sige)**2);
-    $bbsigy=sqrt($betay2[$jj]*$kp*$emity*$kp+($dy2[$jj]*$kp*$sige)**2);
+        printf fpw "Beta   (cm):         (x)=%f (y)=%f\n",$betax2[$jj]*$kp,$betay2[$jj]*$kp;
+        printf fpw "Alpha:               (x)=%f (y)=%f\n",$alfax2[$jj],$alfay2[$jj];
+        printf fpw "Disp   (cm):         (x)=%f (y)=%f\n",$dx2[$jj]*$kp,$dy2[$jj]*$kp;
+        printf fpw "Disp_drv:            (x)=%f (y)=%f\n",$dpx2[$jj],$dpy2[$jj];
+        $bbsigx=sqrt($betax2[$jj]*$kp*$emitx*$kp+($dx2[$jj]*$kp*$sige)**2);
+        $bbsigy=sqrt($betay2[$jj]*$kp*$emity*$kp+($dy2[$jj]*$kp*$sige)**2);
     };
     printf "%s %s %G %G %G %G %G %G %G %G %G %G\n", $nameI[$i],$name2[$jj],$x[$i],$y[$i],$px[$i],$py[$i],
                                                     $bbsigx,$bbsigy,$betax1[$i],$betay1[$i],$dx1[$i],$dy1[$i];
