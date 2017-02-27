@@ -8,4 +8,7 @@ echo "usage: $0 task_file"
 exit 0;
 fi
 
-perl ~/lifetrac/bin/madx2ltr.pl out.lattice esave out.strong out.bbwire $1
+SCRIPT=`realpath $0`
+SCRIPTPATH=`dirname $SCRIPT`
+
+perl $SCRIPTPATH/madx2ltr.pl out.lattice esave out.strong out.bbwire $1
