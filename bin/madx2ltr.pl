@@ -787,33 +787,37 @@ for($i=0;$i<$nelens;$i++){
 #
 #--- MULTs ---------------------------------------
 $nattch=0;
+# loop over multipoles in machine lattice file out.lattice
 for($i=0;$i<$nmult;$i++){
     $err=-1;
     $sname=substr($nameM[$i],0,index($nameM[$i],'.'));
     for($j=0;$j<$nm;$j++){
-#	if( $mult1[$j] eq $sname ){
-	if( $j == $i ){
-	    printf "attaching multipole errors #%d:%s to #%d:%s\n",$j,$mult1[$j],$i,$nameM[$i];
-	    $err=$j;
-	    $nattch=$nattch+1;
-	}
+    	if( $mult1[$j] eq $sname ){
+#	    if( $j == $i ){
+	        printf "attaching multipole errors #%d:%s to #%d:%s\n",$j,$mult1[$j],$i,$nameM[$i];
+	        $err=$j;
+	        $nattch=$nattch+1;
+	    }
     }
     if( ($ns[$i] >= 0) || ($nn[$i] >= 0) ){
 	printf fpw "\n# ".$nameM[$i].": MULT\n";
 	$zero=0;
 	printf fpw "Shift: (x)=%G (y)=%G (r)=%G \n",$zero,$zero,$tiltM[$i];
-	printf fpw "Length: %G \n", $lrad[$i]*$kp;
+	printf fpw "Length: %2.10e \n", $lrad[$i]*$kp;
 	if( $nn[$i] >= 0 || $nnm[$err] >=0 ){printf fpw "KNL: ";}
 	for($j=0;$j<max($nn[$i]+1,$nnm[$err]+1);$j++){
-	    printf fpw "%G \n",($knl[$i][$j] + $knlm[$err][$j])*$km**$j;
+	    printf fpw "%2.10e \n",($knl[$i][$j] + $knlm[$err][$j])*$km**$j;
+#	    printf fpw "%G \n",($knl[$i][$j] + $knlm[$err][$j])*$km**$j;
 	}
 	if( $ns[$i] >= 0 || $nsm[$err] >=0 ){printf fpw "KSL: ";}
 	for($j=0;$j<max($ns[$i]+1,$nsm[$err]+1);$j++){
-	    printf fpw "%G \n",($ksl[$i][$j] + $kslm[$err][$j])*$km**$j;
+	    printf fpw "%2.10e \n",($ksl[$i][$j] + $kslm[$err][$j])*$km**$j;
+#	    printf fpw "%G \n",($ksl[$i][$j] + $kslm[$err][$j])*$km**$j;
 	}
     }
 }
-printf "Number of multipole errors attached: %d\n", $nattch;
+printf "MF %d %d\n",$nmult,$nm;
+printf "Number of multipole errors attached: %d %d\n", $nattch,$nmultall;
 #
 printf fpw "\n_______________________End_Working_Parameters___________________________\n";
 
