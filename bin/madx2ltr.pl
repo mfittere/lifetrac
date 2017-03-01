@@ -114,6 +114,8 @@ while( <fpr1> ){
                    printf "Particle type not found in lattice file, defaulting to %s \n", $particle; }
         }    
     }
+    if( ($buf[0] eq '@') && ($buf[1] eq 'SEQUENCE') ){ $sequence=$buf[3]; 
+    printf "Sequence = %s \n", $sequence; }
     if( ($buf[0] eq '@') && ($buf[1] eq 'ENERGY') ){ $energy=$buf[3]; 
     printf "Energy = %f GeV\n", $energy; }
     if( ($buf[0] eq '@') && ($buf[1] eq 'GAMMA') ){ $gamma=$buf[3]; 
@@ -807,19 +809,34 @@ for($i=0;$i<$nmult;$i++){
 	    printf fpw "Shift: (x)=0 (y)=0 (r)=%G \n",$tiltM[$i];
 	    # length [cm]
 	    printf fpw "Length: %2.10e \n", $lrad[$i]*$kp;
-	    # normal errors
+			# beam1: same sign of knl,knsl in twiss and esave
+			# beam2: sign of knl,knsl switched according to:
+			#        normal (knl): (-1)**(k+1)
+			#        skew  (knsl): (-1)**(k+1)
+			# Note: Do not use k0l values in Lifetrac
+	    # normal knl
 	    if( $nn[$i] >= 0 || $nnm[$jerr] >=0 ){
 	      printf fpw "KNL: ";
 	      # loop over all multipole errors
 	      for($k=0;$k<max($nn[$i]+1,$nnm[$jerr]+1);$k++){
+				  if( $sequence eq '"LHCB1"' ){
 	          printf fpw "%2.10e \n",($knl[$i][$k] + $knlm[$jerr][$k])*$km**$k;
+					}
+				  if( $sequence eq '"LHCB2"' ){
+	          printf fpw "%2.10e \n",($knl[$i][$k] + ((-1)**(k+1))*$knlm[$jerr][$k])*$km**$k;
+					}
 	      }
 	    }
-	    # skew errors
+	    # skew knsl
 	    if( $ns[$i] >= 0 || $nsm[$jerr] >=0 ){
 			  printf fpw "KSL: ";
         for($k=0;$k<max($ns[$i]+1,$nsm[$jerr]+1);$k++){
- 	        printf fpw "%2.10e \n",($ksl[$i][$k] + $kslm[$jerr][$k])*$km**$k;
+				  if( $sequence eq '"LHCB1"' ){
+ 	          printf fpw "%2.10e \n",($ksl[$i][$k] + $kslm[$jerr][$k])*$km**$k;
+					}
+				  if( $sequence eq '"LHCB2"' ){
+ 	          printf fpw "%2.10e \n",($ksl[$i][$k] + ((-1)**(k+1))*$kslm[$jerr][$k])*$km**$k;
+					}
        	}
 			}
     }
