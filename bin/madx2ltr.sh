@@ -8,7 +8,9 @@ echo "usage: $0 task_file"
 exit 0;
 fi
 
-SCRIPT=`realpath $0`
+SCRIPT=`readlink -f $0`
 SCRIPTPATH=`dirname $SCRIPT`
+
+echo $SCRIPTPATH
 
 perl $SCRIPTPATH/madx2ltr.pl out.lattice esave out.strong out.bbwire $1
