@@ -17,6 +17,10 @@
 # added 9) hollow electron beam collimator
 # :::: 11/25/2012 ::::
 # for wire compensator element "BBWIRE" changed beta-functions to match wire size
+# :::: 03/01/2017 ::::
+# corrected error assignment for beam 2 + update automatic read in of wire parameters
+# :::: 03/30/2017 ::::
+# add collimators
 #
 # the following commands dump madx lattice to files needed for this script:
 #if(mylhcbeam==1){
@@ -36,6 +40,7 @@
 #select,flag=twiss,class=kicker;
 #select,flag=twiss,class=hkicker;
 #select,flag=twiss,class=vkicker;
+#select,flag=twiss,class=RCOLLIMATOR,pattern=TCP;
 #twiss,file="out.lattice";
 #}; 
 #
@@ -103,7 +108,7 @@ $fswitch=0;
 # solenoid, dipole edges, correctors (kickers), 
 # crab cavities (tkicker), elens (marker named HEBC)
 $nip=0; $ndrift=0; $nmult=0; $nzerom=0; $nrf=0; $nsol=0; $ndpdg=0;
-$nkick=0; $ncc=0;  $nelens=0; $nwire=0;
+$nkick=0; $ncc=0;  $nelens=0; $nwire=0; $ncol=0;
 while( <fpr1> ){
     @buf=split ;
     if( ($buf[0] eq '@') && ($buf[1] eq 'PARTICLE') ){ 
@@ -301,6 +306,12 @@ while( <fpr1> ){
                                if( $buf[$iname] =~ /HEBC/ ){
                                $name1[$n]="$buf[$iname].$n"; $nameEL[$nelens]=$name1[$n]; 
                                $nelens=$nelens+1;
+                               } else { $n=$n-1; }
+			     }
+            case "RCOLLIMATOR" { 
+                               if( $buf[$iname] =~ /TCP/ ){
+                               $name1[$n]="$buf[$iname].$n"; $nameCol[$ncol]=$name1[$n]; 
+                               $ncol=$ncol+1;
                                } else { $n=$n-1; }
                              }
 	    case "MULTIPOLE" { $name1[$n]="$buf[$iname].$n"; $nameM[$nmult] = $name1[$n];
@@ -785,6 +796,15 @@ for($i=0;$i<$nelens;$i++){
     printf fpw "\n# ".$nameEL[$i].": EXT_TLHC\n";
     printf fpw "Value_1: 0 \n" ;
     printf fpw "Value_2: 1 \n" ;
+}
+#
+#--- Collimator  ---------------------------------
+for($i=0;$i<$ncol;$i++){
+    printf fpw "\n# ".$nameCol[$i].": EXT_CLMR\n";
+    printf fpw "Value_1: 0 \n" ;
+    printf fpw "Value_2: 0 \n" ;
+    printf fpw "Value_3: 0 \n" ;
+    printf fpw "Value_4: 0 \n" ;
 }
 #
 #--- MULTs ---------------------------------------

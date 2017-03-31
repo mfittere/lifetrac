@@ -31,6 +31,7 @@ select,flag=twiss,class=hkicker;
 select,flag=twiss,class=vkicker;
 select,flag=twiss,class=tkicker,pattern=ACRAB;
 select,flag=twiss,class=tkicker,pattern=ACF;
+select,flag=twiss,class=RCOLLIMATOR,pattern=TCP;
 twiss,file="out.lattice";
 
 option,echo,info;
