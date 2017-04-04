@@ -1,0 +1,106 @@
+
+                            Release Notes for Beam-Beam code LIFETRAC
+
+                            Software Version: 3.31
+
+                            August 2004
+
+                            Author: D.N. Shatilov
+
+                            Budker Institute of Nuclear Physic,
+                            Novosibirsk, Russian Federation
+
+
+
+1. OVERVIEW.
+
+   The Beam-Beam code LIFETRAC is intended for simulation of the equilibrium
+   distribution of the particles in circular electron-positron colliders.
+   One of the important features is the capability of simulating the beam's
+   halo and lifetime. A special tracking technique has been developed, which
+   allows to save huge amount of CPU time for such long-term simulations.
+   Besides, there is a possibility of simulating non-equilibrium distributions,
+   for example proton beams (which have very small damping), or beams with
+   external excitations depending on time, or some parameters' dependence on
+   time.
+
+   Description of the input and output syntax can be found in the following
+   files:
+     readme.txt   - overview and command line directives
+     taskfile.hlp - description of the "task" files
+     out_data.hlp - description of the output
+
+
+
+2. NEW FEATURES AND CORRECTIONS IN THE VERSION 3.31.
+
+2.1 Non-Gaussian strong bunch.
+
+   The strong bunch can be represented as a sum of two or three bunches with
+   different transverse emittances. This feature allows using in simulations
+   non-Gaussian strong bunches. For that, the following lines can be written
+   in the "General Parameters" section (before Structure):
+
+      Emitt_str1 (cm*rad):  (x)=2.56E-5       (y)=1.75E-6       (w)=0.345
+      Emitt_str2 (cm*rad):  (x)=3.68E-5       (y)=2.34E-6       (w)=0.234
+
+   The relative "weight" of harmonic is equal to 1.0 for Emitt_str and (w) for
+   Emitt_str1 and Emitt_str2. If the (w) value is not defined, it is assumed
+   to be zero by default. The ksi parameter is defined in assumption that
+   there is only one main harmonic in strong bunch's emittance: Emitt_str.
+   This is used to obtain the strong bunch's intensity I_0. For tracking, the
+   intensities of harmonics are equal to I_0/S, I_0*w1/S and I_0*w2/S, where
+   S=1+w1+w2.
+
+
+2.2 Number of particles to track.
+
+   The limit for the number of particles was increased from 10^4 to 10^6.
+   Note that the product npart*nturn must be <= 2*10^9, otherwise data will
+   be corrupted due to integer overflow. Here "npart" is the number of
+   particles to track, and "nturn" is the number of turns for a step. Both
+   these parameters are defined by the "Boundary" options: (part) and (step).
+
+
+2.3 New element type EXT_WTCH.
+
+   This is an "extension" to standard LIFETRAC's set of elements, as well as
+   all EXT_**** element types. However, it is more complicated than all the
+   previous EXT_**** elements and requires a detailed explanation, which is
+   given below.
+      This element takes an effect for non-equilibrium distributions only,
+   otherwise it is ignored (no errors printed). One may insert a few such
+   elements at different points on the ring. There are two input parameters,
+   with the standard names: Value_1 and Value_2. By default, as usual, both
+   of them are equal to zero.
+      The first value is the number of turns to gather the beam coordinates
+   (center of mass over all the particles). Zero means gathering all the
+   turns. If Value_1 < 0, the beam coordinates will not be saved. The second
+   value is the "accuracy" of beam coordinates: they are measured in units of
+   Value_2. If Value_2 <= 0, it is set to 1.0E-5 (that is 0.1 mkm). The
+   greater Value_2 is, the shorter will be the output. After completion of
+   each step the beam coordinates will be packed like histograms and written
+   to "*.ltr" file. One should use a special Export directive in taskfile to
+   extract these data:
+          Export: (wtch)=(n1:n2)
+   where n1 and n2 are the turn numbers, 0 means the last written turn,
+   negative values are accounted from the last one. For example, to extract
+   the last 4096 turns (for FFT analysis), one should include the following
+   line in taskfile:
+          Export: (wtch)=(-4095:0)
+   Then, the "*.wtch" text file will be created with four columns: coord_x,
+   coord_y, coord_z, and turn_number. If there are a few EXT_WTCH elements on
+   the ring, the fifth column (tag) will be added (e.g. #01, #02). As usual,
+   the output can be redirected to stdout: use "=>" instead of "=" in the
+   Export directive.
+      Besides, after completion of each step the beam sizes (Gauss-fitted)
+   will be also printed to "*.ltr" file. Use
+          grep Sizes filename.ltr
+   to extract these data.
+
+
+2.4 Changes in taskfiles.
+
+   The keywords INPUT and REDUCE are removed. If one want to create a
+   new *.ltr file, all the parameters must be defined in a "passport"
+   section within taskfile.

@@ -1,0 +1,210 @@
+#!/bin/tcsh
+
+if ($# <= 3) then
+  echo "Usage:"
+  echo "  phst xt|png|ps filename p|n histname [ratio] [xrange] [yrange] [steps] [ng]"
+  echo ""
+  echo "1D histograms of particle distribution."
+  echo " xt|png|ps - write the output to X-terminal, png, or ps file"
+  echo "  filename - name of LIFETRAC's output file(s) WITHOUT suffics '.ltr',"
+  echo "             wildcards are allowed (don't forget to enclose 'filename'"
+  echo "             in quotation marks when using wildcards)"
+  echo "  p, n     - physical or normalized coordinates"
+  echo "  histname - What histogram to plot: x, px, ax, y, py, ay, z, pz, az"
+  echo "             (ax, ay and az are defined for normalized coordinates only)"
+  echo "  ratio    - the plot aspect ratio (see help on GNUPLOT 'set size'"
+  echo "             directive). It is the ratio between plot's y- and x- axis"
+  echo "             (if > 0), or y- and x- units (if < 0)."
+  echo "  xrange,"
+  echo "  yrange   - the ranges of plotting area (if omitted, the ranges will"
+  echo "             be adjusted by GNUPLOT to fit the full picture)"
+  echo "  steps    - define how to plot histograms for different steps. This"
+  echo "             option should be used for non-equilibrium distributions"
+  echo "             only. The possible values are: 0, 1, 2, 00, 11, 22, S_*."
+  echo "             In the first three cases the histograms will be plotted"
+  echo "             sequentially for all, odd, even steps correspondingly."
+  echo "             In the next three cases the histograms for all the"
+  echo "             corresponding steps will be plotted simultaneously, and"
+  echo "             in the last case only specified step will be plotted."
+  echo "  ng       - do not draw a Gaussian line"
+  echo ""
+  echo "Examples:"
+  echo "  1) phst xt filename p py"
+  echo "     Plot the physical Py distribution (equilibrium case - one final"
+  echo "     histogram from all the steps)."
+  echo "  2) phst png filename n ax '' '' '' 1"
+  echo "     Make sequential plots of ax for odd steps and write them to png"
+  echo "     files filename.k.ax.png, where k is the step number."
+  echo "  3) phst xt filename n x 0.5 '10:20' '0:0.01' S_12"
+  echo "     Plot the normalized X distribution from the 12th step. The plot"
+  echo "     aspect ratio will be 0.5 (twice as wide as high). The specified"
+  echo "     scales allow to see the long tails (if any)."
+  echo "  4) phst ps filename n y 1 '-8:8' '' 22"
+  echo "     Plot the normalized Y distribution from all the even steps, and"
+  echo "     write them to PostScript file filename.y.ps. The plotting area"
+  echo "     will be a square, the horizontal scales will be -8:8."
+  echo ""
+  exit
+else if ($1 != xt & $1 != png & $1 != ps) then
+  echo "Invalid command line argument (must be 'xt', 'png' or 'ps'):" $1
+  exit
+else if ($# >= 10) then
+  echo "Too many command line arguments"
+  exit
+else if ($# == 9 & $9 != ng) then
+  echo "Invalid 9th command line argument (must be 'ng'):" $9
+  exit
+else if ($3 == n) then
+  set n = `echo $4 | awk '{print int(index("  x  px ax y  py ay z  pz az",$1)/3)+1}'`
+  if ($n <= 1 | $4 == "p" | $4 == "a") then
+    echo "Invalid command line argument:" $4
+    echo "Must be one of: x, px, ax, y, py, ay, z, pz, az."
+    exit
+  endif
+  set t = `echo $n | awk '{print substr("X  Px Ax Y  Py Ay Z  Pz Az",$1*3-5,2)}'`
+else if ($3 == p) then
+  set n = `echo $4 | awk '{print int(index("  x  px y  py z  pz",$1)/3)+1}'`
+  if ($n <= 1 | $4 == "p") then
+    echo "Invalid command line argument:" $4
+    echo "Must be one of: x, px, y, py, z, pz."
+    exit
+  endif
+  set t = `echo $n | awk '{print substr("X  Px Y  Py Z  Pz",$1*3-5,2)}'`
+else
+  echo "Invalid 2nd command line argument (must be 'p' or 'n'):" $3
+  exit
+endif
+
+set m = `echo $4 | awk '{print index("x px y py z pz ",$1) }'`
+set r = `echo $8 | awk '{print index("0 1 2 ",$1) }'`
+set w = `echo $8 | awk '{print index($1,"S_")+index($1,"s_") }'`
+if ($8 == '') set r = 0
+if ($w == 1) then
+  set q = `echo $8 | awk '{print substr($1,3,5) }'`
+else
+  set q = ''
+endif
+set f = /tmp/ltl.$$
+set k = ''
+
+foreach i ($2.ltr)
+  if (! -e $i) then
+    if ($k == '') echo "No files found for that pattern: "$2
+    exit
+  endif
+  set k = `echo $i | awk '{ print substr($1,1,length($1)-4) }'`
+  set a = $k
+  while (1)
+    set b = `echo $a | awk '{ print index($1,"/") }'`
+    if ($b == 0) break
+    set a = `echo $a $b | awk '{ print substr($1,$2+1,length($1)-$2) }'`
+  end
+  echo 'File: '$k >! $f
+  if ($3 == n) then
+    echo 'Export: (hist)=>gauss' >> $f
+  else
+    echo 'Export: (hiph)=>gauss' >> $f
+  endif
+#  /home/shatilov/lifetrac/lifetrac $f -q > /tmp/$a.hist.$$
+  /home/valishev/lifetrac/src_3.41/lifetrac $f -q > /tmp/$a.hist.$$
+  if (-e $f.err) then
+    cat $f.err
+    rm $f* /tmp/$a.line.$$
+    continue
+  else if (! -e /tmp/$a.hist.$$) then
+    echo "Error creating "$a".hist file"
+    rm $f*
+    continue
+  endif
+
+  if ($1 == png) then
+    echo "set terminal png size 700 700" >! $f
+    if ($# < 8) echo "set output '"$a"."$4".png'" >> $f
+  else if ($1 == ps) then
+    echo "set terminal postscript portrait monochrome" >! $f
+    if ($# < 8) echo "set output '"$a"."$4".ps'" >> $f
+  else if ($?DISPLAY == 0) then
+    echo "set terminal regis"  >! $f
+  else
+    echo "set terminal x11"    >! $f
+  endif
+  if ($6 != '') then
+    echo 'set xrange ['$6']'   >> $f
+  else if ($m > 0) then
+    echo 'set xrange [-5:5]'   >> $f
+  else
+    echo 'set xrange [ 0:5]'   >> $f
+  endif
+  echo 'set yrange ['$7']'     >> $f
+  echo 'set data style lines'  >> $f
+  if ($5 != '') echo 'set size ratio '$5 >> $f
+  if ($3 == n) then
+    echo 'set xlabel "Coordinate/sigma" 0,0' >> $f
+  else
+    set v = `grep Hsig /tmp/$a.hist.$$`
+    set s = `echo $v | awk '{print index($1,"Hsig")}'`
+    if ($s == 0) then
+      echo 'There are no "Hist_phys" data in '$k'.ltr'
+      rm /tmp/$a.hist.$$ $f*
+      continue
+    endif
+    set s = `echo $v $n | awk '{ print substr($1" "$2" "$3" "$4" "$5" "$6" "$7,$8*11-14,10) }'`
+    echo 'set xlabel "Coordinate/sigma='$s'" 0,0' >> $f
+  endif
+  echo 'set ylabel "Density"    2,0' >> $f
+
+  set s = ''
+  if ($8 == 00) then
+    echo 'set title "'$a'   '$t'   all steps" 0,0' >> $f
+  else if ($8 == 11) then
+    set s = O
+    echo 'set title "'$a'   '$t'   odd steps" 0,0' >> $f
+  else if ($8 == 22) then
+    set s = E
+    echo 'set title "'$a'   '$t'  even steps" 0,0' >> $f
+  else if ($w == 1) then
+    set qq = $q
+    if ($q < 10) set qq = 0$q
+    echo 'set title "'$a'   '$t'  step '$qq'" 0,0' >> $f
+    if ($1 == png) echo "set output '"$a"."$qq"."$4".png'" >> $f
+    if ($1 == ps)  echo "set output '"$a"."$qq"."$4".ps'"  >> $f
+  else if ($r == 0 | $r == '') then
+    set s = ' '
+    echo 'set title "'$a'   '$t'" 0,0' >> $f
+  else
+    @ q = 1
+    if ($8 == 2) @ q++
+  endif
+
+  while (1)
+    if ($r > 0) then
+      @ p = `grep -E S_$q /tmp/$a.hist.$$ | wc -l`
+      if ($p == 0 ) break
+      set qq = $q
+      if ($q < 10) set qq = 0$q
+      if ($1 == png) echo "set output '"$a"."$qq"."$4".png'" >> $f
+      if ($1 == ps)  echo "set output '"$a"."$qq"."$4".ps'"  >> $f
+      echo 'set title "'$a'   '$t'  step '$qq'" 0,0' >> $f
+    endif
+    if ($8 == '') then
+      set pl = 'plot "/tmp/'$a'.hist.'$$'" using 1:'$n
+    else if ($q == '') then
+      set pl = 'plot "< egrep '"'("$s' )|(^$)'"' /tmp/"$a'.hist.'$$'" using 1:'$n
+    else
+      set pl = 'plot "< egrep '"'("$s" S_"$q' )|(^$)'"' /tmp/"$a'.hist.'$$'" using 1:'$n
+    endif
+    if ($# == 9) then
+      echo $pl' notitle' >> $f
+    else if ($m > 0) then
+      echo $pl' title "trac", exp(-x**2/2) title "norm"' >> $f
+    else
+      echo $pl' title "trac", (x > 0 ? x : 0)*1.64672*exp(-x**2/2) title "norm"' >> $f
+    endif
+    if ($1 == xt) echo 'pause -1 "Press RETURN to continue"' >> $f
+    if ($r == 0 | $r == '') break
+    @ q++
+    if ($8 != 0) @ q++
+  end
+  gnuplot $f
+  rm /tmp/$a.hist.$$ $f*
+end

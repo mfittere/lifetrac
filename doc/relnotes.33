@@ -1,0 +1,191 @@
+
+                            Release Notes for Beam-Beam code LIFETRAC
+
+                            Software Version: 3.3
+
+                            November 2003
+
+                            Author: D.N. Shatilov
+
+                            Budker Institute of Nuclear Physic,
+                            Novosibirsk, Russian Federation
+
+
+
+1. OVERVIEW.
+
+   The Beam-Beam code LIFETRAC is intended for simulation of the equilibrium
+   distribution of the particles in circular electron-positron colliders.
+   One of the important features is the capability of simulating the beam's
+   halo and lifetime. A special tracking technique has been developed, which
+   allows to save huge amount of CPU time for such long-term simulations.
+   Besides, there is a possibility of simulating non-equilibrium distributions,
+   for example proton beams (which have very small damping), or beams with
+   external excitations depending on time, or some parameters' dependence on
+   time.
+
+   Description of the input and output syntax can be found in the following
+   files:
+     readme.txt   - overview and command line directives
+     taskfile.hlp - description of the "task" files
+     work_pnt.hlp - description of the "passport" (parameters of the working
+                    point)
+     out_data.hlp - description of the output
+
+
+
+2. NEW FEATURES AND CORRECTIONS IN THE VERSION 3.3.
+
+2.1 Misprint in the keyword GAMMA_WEAK fixed.
+
+   In the previous Version it was a misprint in the keyword GAMMA_WEAK, which
+   was written as HAMMA_WEAK. Now it is fixed.
+
+
+2.2 Number of turns for steps for non-equilibrium distributions.
+
+   In the previous Version the last 10 turns of each step were accounted
+   separately and the corresponding statistics were written to the "ltr" file
+   with the special marks. In the Version 3.3 it was generalized as follows.
+   The number of turns now can be defined by two different ways. If a single
+   number is given without parentheses, it means that all the steps will have
+   the same number of turns (without separate accounting of the last 10 turns).
+   Another possibility is to write two numbers within perentheses, separated
+   by a comma. In this case the first one is the number of turns for the ODD
+   steps (1,3,5,...), and the second one - for the EVEN steps (2,4,6,...).
+   For example:
+     Boundary:   (part)=10000     (step)=(100,50000)
+   So, the short steps represent the snapshots of the distribution, separated
+   by the long steps, while the long steps represent the distribution averaged
+   over longer time, having much better statistical reliability. The duration
+   of "odd" and "even" steps can be chosen arbitrary.
+
+
+2.3 Initial distribution for non-equilibrium case.
+
+   In the previous Version the initial 6D particle distribution was always
+   Gausian. In the Version 3.3 a possibility of using arbitrary initial
+   distributions was introduced by mean of the new kyeword in the first
+   passport section (General Parameters):
+     DISTR_INIT: filename
+   Where filename is a text file with 7-column table of particles' coordinates
+   (physical or normalized) and weights.
+
+
+2.4 Crossing angle and Crab-crossing.
+
+   In the previous Version only small crossing angles were allowed. In the
+   Version 3.3 arbitrary crossing angles can be used. Besides, a "crab"
+   rotation of the strong bunch can be defined with the new keyword CRAB
+   in IP element description.
+
+
+2.5 Coupling in LATT elements.
+
+   The 4D lattice functions can be defined in LATT elements according to the
+   V.Lebedev and S.Bogacz paper "Betatron Motion with Coupling of Horizontal
+   and Vertical Degrees of Freedom". When such LATT elements are referenced
+   from LIN elements, they define 6*6 transport matrixes with coupling. When
+   referenced from IP elements, they are used to calculate the second-order
+   moments, which define in general case the strong beam shape versus
+   longitudinal coordinate (azimuth).
+
+2.5.1 New keywords in LATT element description.
+
+   The new keywords BETA_C, ALPHA_C and COUPLING can be used to define the
+   coupled lattice functions. COUPLING defines the U and V1 parameters,
+   which can be calculated from betas and alphas, but with some ambiguity.
+   These two parameters are used to choose one solution from 2*2 possible
+   variants.
+
+2.5.2 Lattice propagation.
+
+   In the previous Version the lattice functions, when referenced, could
+   be propagated through the sequence of uncoupled matrixes only. In the
+   Version 3.3 any matrixes (coupling is allowed) can be used for lattice
+   propagation.
+
+2.5.3 Printing the lattice functions, etc.
+
+   When the command line argument -v (for verbose) is used, the code prints
+   the tunes, beta, alpha (with coupling) and dispersion functions at the
+   watching point, and the same functions for shifted by 5*sigma_E energy.
+   At the end, the chromaticity of betatron tunes and beta-functions are
+   given. If the -vv switch is used, the 6*6 one-turn transport matrix will
+   be printed in addition.
+
+
+2.6 New keyword M_56 for LIN elements.
+
+   Instead of using synchrotron tune advance for LIN elements, one may
+   define the M_56 matrix element by mean of the keyword "M_56". In this
+   case the right-lower corner of the transport matrix will be
+   (1  M_56)  instead of  (cos  -sin)
+   (0    1 )              (sin   cos)
+   One can specify either synchrotron tune or M_56 for LIN element, but
+   not both of them. Note also that, when using M_56, RF cavity should be
+   included in the STRUCTURE explicitly in order to make the synchrotron
+   motion stable.
+
+
+2.7 Changes in 2D distribution processing.
+
+   In the previous Version the vertical cell size was changed with the step
+   number. In the Version 3.3 both cell sizes (horizontal and vertical) are
+   constant for all the steps and can be defined in the passport section.
+   The algorithm of 2D distribution processing also was changed, that caused
+   some changes in the output data written to the *.ltr files.
+
+2.7.1 New keyword CELL_SIZE for WATCH element.
+
+   The keyword CELL_SIZE is added to the WATCH element description. If the
+   keyword is omitted, the both cell sizes (horizontal and vertical) are
+   assumed to be 0.02. Correspondingly, CELL_SIZE is excluded from the data
+   written to the *.ltr file for the sequential steps.
+
+2.7.2 Line_border is replaced by Max_ampl.
+
+   In the previous Version the border lines (marked as Line_border) were used
+   on each step to define the area where the 2D distribution is gathered. In
+   the Version 3.3 there is no such limitation, and correspondingly there are
+   no border lines. Instead, the maximum reached amplitudes are given for
+   sequential steps after the keyword MAX_AMPL.
+
+2.7.3 Line_reach changes its meaning.
+
+   In the previous Version the Line_reach was used to define the maximum
+   "vertical" amplitude reached by the particle, versus the "horizontal"
+   amplitude. In the Version 3.3 it is the border of 2D area where the
+   particles were found during the given step. So, now it becomes more
+   informative. The Line_reach is obtained only after completion of the
+   step and is written just before the level lines.
+
+
+2.8 Changes in the "Export: (HIST)" action.
+
+   In the previous Version no option must be present after the (HIST)
+   sub-keyword. In the Version 3.3 either GAUSS or ERFC option must be
+   specified. The last one is equivalent to the old-style output. The
+   GAUSS option is used to produce normal histograms of 1D distribution
+   density. See the files taskfile.hlp and out_data.hlp for more
+   information.
+
+
+2.9 Writing the output to stdout instead of files.
+
+   The actions TRACK and EXPORT now can write its output to stdout, instead
+   of *.trac, *.hist and *.line files. To do so, use "=>" instead of "=" in
+   the action specification (in taskfile), for example:
+      Track:  100   (norm)=>(1,1,1,1,1,1)
+      Export: (hist)=>Gauss    (line)=>half
+
+
+2.10 Obsolete features removed.
+
+   Support of the output files produced by the LIFETRAC Versions elder
+   than 3.1 is cancelled. If necessary, the new file (working point) can
+   be created with the corresponding input parameters, and processed by
+   the current code LIFETRAC Version 3.3.
+
+   Support of the code running on VMS operating system is cancelled too.
+   At present, the code can be executed on UNIX systems only.

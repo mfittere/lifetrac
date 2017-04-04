@@ -1,0 +1,1327 @@
+!               The main features of beam-beam code LIFETRAC.
+!               ---------------------------------------------
+!
+! STRUCTURE
+!
+!  1. Arbitrary number of elements of different types. Each element
+!     should be described separately.
+!  2. The possible types of elements are:
+!        - Interaction Point (including PC)
+!        - Drift
+!        - Matrix 6*6 (can be with any coupling)
+!        - Noise matrix (with possible correlations between noises)
+!        - Damping matrix
+!        - Thin sextupole lens
+!        - Thin octupole lens
+!        - Linear map (beam line), with possible betatron coupling,
+!          chromaticities and cubic nonlinearities of the betatron tunes,
+!          betatron tune noise and modulations.
+!        - Some "external" elements (for example, "chromatic drift" or
+!          electron lens)
+!  3. The "watching point" can be inserted at any point on the ring.
+!  4. Any asymmetry between "weak" and "strong" beams are allowed.
+!
+!
+!
+! INTERACTION POINTS
+!
+!  1. Different number of particles for different "strong" bunches.
+!  2. "Strong" bunch's current and emittances may change with a time.
+!  3. "Strong" bunch may consist of 2 or 3 "harmonics" with different
+!     emittances, that allows to have non-Gaussian "strong" bunch while
+!     using the formulae developed for the Gaussian distribution.
+!  4. Any coupling in the "strong" bunch: the envelope matrix (2nd order
+!     momenta) is used to calculate beam-beam force (assuming it is
+!     Gaussian).
+!  5. Longitudinal slicing of the "strong" bunch (any number of slices).
+!  6. 6D symplectic beam-beam kick, including energy change.
+!  7. Crossing angle (both X and Y) and crab-crossing.
+!  8. Separation between bunches (X, Y and Z), including noise and
+!     modulations of separations.
+!  9. Luminosity calculation with account of both factors of crossing
+!     angle and hour-glass effect.
+!
+!
+! OUTPUT
+!
+!  1. Simulation consists of many steps, each step lasts N turns.
+!  2. All the statistics data are averaged independently for each step
+!     (N turns) over all the particles.
+!  3. The output includes:
+!        - Emittances and envelope matrix for the "weak" beam.
+!        - Luminosity for each IP (and even PC).
+!        - 1D histograms for X, Px, Ax, Y, Py, Ay, Z, Pz, Az.
+!        - 2D contour plot of the distribution density in the space of
+!          normalized betatron amplitudes.
+!        - Maximum reached amplitudes (including a line in the space of
+!          normalized betatron amplitudes).
+!        - Coordinates of died particles and the lifetime.
+!        - 6D distribution of the "weak" beam (10000 points are saved).
+!
+!
+! The "input language" is described below.
+!___________________________________________________________________________
+
+
+! This is an example of task file for Beam-Beam code LIFETRAC, Version 3.31.
+! The syntax rules are as follows:
+!
+! 1) Only first 80 characters in a text line are significant. Blank (empty)
+!    lines are ignored. If there is an exclamation point (!) in a line, all
+!    characters to the right are treated as comments. So, now you are reading
+!    the comments of the VALID task file.
+! 2) The items are recognized by the keywords, which are cAsE iNsEnSiTiVe
+!    and must be followed by a colon (:). Keywords must be at the very
+!    beginning of the line (leading blanks and tabs are allowed, however).
+! 3) A continuation indicator, ampersand (&), can be used at the end of
+!    line to write long filenames and other options across lines.
+! 4) Taskfile consists of the following sections:
+!      1 - Name of the working file (with possible scan options or wildcards).
+!      2 - List of actions to be performed.
+!      3 - Working parameters (passport).
+! 5) Section 1 is mandatory, all the others are optional. Section 3 is used
+!    to create a new working file(s), and it is ignored if the specified
+!    working file already exists.
+
+
+!=============================== Section_1 ===================================!
+
+File:  my_dir/sub_dir/my_working_file_qx< 10, 530, 5 >   &
+                                     _qz< 11, 640, -5>_sig<3,1,1>
+
+! You must not specify the file's extension (suffix), but only filename. The
+! directory path can be omitted, in this case the default working directory
+! is assumed. If the working file does not exist, it will be created. In this
+! case section 3 must be present.
+!
+! The angle brackets are used to define a scan of working parameters, as
+! follows:
+!   - Blanks and tabs within angle brackets are ignored.
+!   - The first number in the brackets is the number of points in a scan
+!     sequence (i.e. maximum index for this scan "direction"). This number
+!     must be greater than 1.
+!   - The second number is the part of the filename replacing the angle
+!     brackets for the first working point in a sequence.
+!   - The third number is the increment (or step) for the second number.
+!     It can be negative, as well as the resulting "second number".
+! The scan dimension (number of independent scan indexes, or "directions")
+! must not exceed 4; in the current case it is equal to 3. During the scan,
+! the first index (if the dimension is greater than 1) is changed most
+! rapidly. So, the files in the defined above scan sequence will be named
+! as follows:
+!    1 - my_working_file_qx530_qz640_sig1
+!    2 - my_working_file_qx535_qz640_sig1
+!         ......
+!   10 - my_working_file_qx575_qz640_sig1
+!   11 - my_working_file_qx530_qz635_sig1
+!         ......
+!   22 - my_working_file_qx535_qz630_sig1
+!         ......
+!  110 - my_working_file_qx575_qz590_sig1
+!  111 - my_working_file_qx530_qz640_sig2
+!         ......
+!  329 - my_working_file_qx570_qz590_sig3
+!  330 - my_working_file_qx575_qz590_sig3
+!
+! If a scan is defined, the 3rd task's section must be present, and the
+! actual parameters to be scanned must be described there (see below).
+!
+! Besides, filename can contain wildcards. In this case section 3 must not
+! be present in the task file, so that the actions (specified in section 2)
+! will be applied to already existent files with the names matching the
+! pattern. For example, my_working_file_qx*_qz5*_sig2 can be used later
+! (after completion of this task) to perform some additional actions under
+! the part of files (20 from 330) involved in the current task. Obviously,
+! angle brackets (scan) and wildcards cannot be specified simultaneously in
+! the same task.
+
+
+!=============================== Section_2 ===================================!
+
+! Actions to be performed. The valid keywords for this section are: TRACK,
+! DEBUG, STEPS, SAVE, and EXPORT, the order of keywords is insignificant.
+
+Track:  100      (norm)= (1.,  0.,  0.,  1.,  2.,  2.)
+
+Track:  256      (Phys)=>(1.234E-3,  0.,        &
+                          0.,        3.456E-5,  &
+                          2.345,     6.789E-4   )
+
+! The TRACK actions are used to produce a turn-by-turn output of the test
+! particle's coordinates. One can specify this action many (up to 20) times
+! with the different initial conditions, and all the output will be written
+! sequentially to the *.trac file (the same name as for the working file,
+! but the extension (suffix) is "trac").
+!
+! The syntax rules for TRACK options are as follows:
+!   - The first word after colon must be an integer number, that is the
+!     number of turns to be recorded (including the initial one).
+!   - The second must be a sub-keyword, either "(NORM)=" or "(PHYS)=".
+!     If "=>" is used instead of "=", the output will redirected to stdout
+!     instead of the *.trac file.
+!   - After that, the initial coordinates of the test particle must be
+!     given in the format: (X, X', Y, Y', Z, dE/E). Continuation indicator
+!     (&) can be used, but only after comma.
+! The initial coordinates, as well as ones to be recorded, are related to
+! the WATCH element in the structure (see the passport of the working point).
+! If the sub-keyword "(PHYS)=" is specified, the physical coordinates are
+! used, i.e. X, Y, and Z are measured in centimeters, X' and Y' in radians,
+! and dE/E is just a relative energy change. Otherwise, if the sub-keyword
+! "(NORM)=" is specified, the normalized coordinates are used.
+!
+! Pay attention that noise and damping will be turned OFF when producing the
+! turn-by-turn output. The TRACK action can be useful for debugging and for
+! careful comparison of different codes, but in most cases it should not be
+! used.
+
+
+Debug:  100
+! The DEBUG is another action, similar with TRACK, that can be useful for
+! debugging. The keyword must be followed by an integer number (the number
+! of turns to be recorded, like in TRACK). The only difference with the
+! TRACK action is that the noise and damping are NOT turned OFF for DEBUG,
+! so we'll get the actual trajectory which was used for statistics gathering.
+! The output will be written to the *.dbg file and consists of the following
+! sections:
+!  - Number of the current step and current seeds for RNG.
+!  - Turn-by-turn output (physical coordinates, specified number of turns).
+!  - Number of the next step and initial seeds for that step.
+!  - Turn-by-turn output for that step (same number of turns).
+!  -  ... and so forth.
+!
+! Pay attention that the DEBUG action will be performed only if the STEPS
+! action (see below) is also specified.
+
+
+Steps:  10     (time)=1.E+9  &
+                (die)=100
+! Number of steps to be performed. The duration of each step will be defined
+! according to the BOUNDARY options (see the passport of the working point).
+!
+! Sub-keywords "(TIME)=" and "(DIE)=" are optional and can be used to avoid
+! unnecessary steps (usually, when simulating the beam tails for equilibrium
+! distributions). So, processing of the current working points will be
+! terminated if either of the following happened:
+!     - Step number 10 finished, or
+!     - "Equivalent time" for the last step exceeded 1.E+9 damping times, or
+!     - Number of died particles on the last step exceeded 100.
+
+
+Save:      (dens)=(1:3)      (cros)=(-1:0)
+! This is used to save some auxiliary files. For equilibrium distribution,
+! except the main working file (*.ltr), the binary files with extensions
+! (suffixes) "dens" and "cros" will be created during execution of the code.
+! These files have a version number which corresponds to the step number.
+! Besides, the file with extension (suffix) "d6" will be created if scattering
+! is turned ON or (d6) was specified among the SAVE options. The "d6" file
+! has no version number, but it consists of many records, each one for a
+! corresponding step. For the simulation on each step the following files are
+! needed:
+!    -  the last versions of both "dens" and "cros" files,
+!    -  the previous version of "cros" file (if the current step number > 1),
+!    -  "d6" file (if scattering is turned ON).
+! By default, all unnecessary (old) versions of "dens" and "cros" files are
+! deleted automatically. Besides, after completion of the working point all
+! the remaining (last) versions of these files, as well as "d6" file (if any),
+! will be deleted too, so that only "ltr" file will be saved. However, in some
+! cases the data written in auxiliary files can be useful too, so one may wish
+! to save some (or all) of them.
+!
+! For non-equilibrium distribution there are no "cros" files, but "coor" files
+! with 6D coordinates of all the particles. Besides, "d6" files will have a
+! version number, as well as "dens" and "coor" files. For the simulation on
+! each step the following files are needed:
+!    -  the last versions of "coor" file,
+!    -  the last versions of "dens" file.
+! By default they will be deleted automatically after completion of the step.
+! Use appropriate SAVE options to save them. See also the file out_data.hlp
+! for more information on the output files and their contents.
+!
+! The valid sub-keywords for SAVE are:
+!   "(DENS)=", "(CROS)=", "(D6)",  "(ALL)="   (    equilibrium distributions)
+!   "(DENS)=", "(COOR)=", "(D6)=", "(ALL)="   (non-equilibrium distributions)
+! After the equal sign, the versions to be saved should be specified in
+! the format (m:n). If the number is .LE.0 it is accounted from the last
+! version (step). Note also that if the COOR option is specified, the initial
+! coordinates of all the particles will be saved too (the file's suffix will
+! be "coor.0").
+!
+! The following examples clarify usage of this syntax:
+!
+! Save:   (all)=(1:0)           ! Save all versions of all the files
+!
+! Save:   (all)=(0:0)           ! Save only the last versions of all the
+!                               ! files (to be able to continue this
+!                               ! working point on next steps, if necessary)
+!
+! Save:  (cros)=(2:2)  (d6)     ! Save the 2nd version of "cros" file, and
+!                               ! also create and save the "d6" file
+!
+! Save:  (dens)=(-1:0)          ! Save the last two versions of "dens" file
+!
+! Save:  (dens)=(-1:5)          ! Save the last two versions of "dens" file,
+!                               ! but only if their numbers are <= 5
+!
+! Save:  (dens)=(5:-1)          ! Save all the versions of "dens" file
+!                               ! starting from 5, except the last one
+
+
+Export:   (hist)=gauss      (line)=>even
+! The equilibrium distributions (2D level lines and 1D histograms) are stored
+! within the "ltr" file in some packed format. To visualize them, one should
+! translate the data into standard ASCII format and then use GNUPLOT, PAW, or
+! something like that. The EXPORT action can be used for this purpose. The
+! valid sub-keywords are: "(HIST)=" and "(LINE)=". If "=>" is used instead of
+! "=", the output will redirected to stdout instead of the *.hist or *.line
+! file, correspondingly.
+!
+! If HIST is specified, the file with extension "hist" will be created,
+! containing the 1D histograms for normalized X, X', Ax, Y, Y', Ay, Z, Z',
+! and Az (including the tails of distributions). The valid options for HIST
+! are GAUSS and ERFC. In the first case the normal distribution is presented,
+! that is Gaussian if there are no perturbations. In the second case the
+! relative part of particles having coordinates (amplitudes) greater than
+! specified values are shown, that is ERFC if there are no perturbations.
+!
+! If LINE is specified, the file with extension "line" will be created,
+! containing the 2D level lines (contour plot) in ASCII format. The valid
+! options for LINE are: EVEN, ODD, HALF, and ALL. The last one will export
+! all the lines for all the steps, including the service lines, while EVEN,
+! ODD and HALF will extract only necessary lines from each step in order to
+! build a qualitative final plot. The "distance" between successive lines
+! in the "ltr" file is SQRT(e). For EVEN and ODD the "distance" between
+! output lines will be e=2.718, but for HALF it remains to be SQRT(e) (this
+! will output as twice as more lines than EVEN or ODD).
+!
+! See the file out_data.hlp for more information on these output files.
+
+
+!=============================== Section_3 ===================================!
+
+! This working point represents an imaginary (not existing) collider with two
+! IPs and many Parasitic Crossings (PC). The only goal of the example is the
+! detailed description of all the possible options and features. The syntax
+! rules and general conventions used in passports are the following:
+!
+! 1) Only first 80 characters in a text line are significant. Blank (empty)
+!    lines are ignored. If there is an exclamation point (!) in a line, all
+!    characters to the right are treated as comments. The comments will be
+!    also written to the output (*.ltr) file.
+! 2) The items are recognized by the keywords, which are cAsE iNsEnSiTiVe. The
+!    order of keywords within passport sub-sections is insignificant. Keywords,
+!    except ones marking the beginning and the end of the passport's body,
+!    must be in the very beginning of the line (leading blanks and TABs are
+!    allowed, however).
+! 3) In the output (*.ltr) file the "units of measurement" for some keywords
+!    are shown between the keyword and a colon (:). In the input file keyword
+!    can be followed by a colon immediately, but colon must be present in any
+!    case. If there are nonstandard words between the keyword and colon in the
+!    input file, error message will be issued.
+! 4) In some cases a colon is followed immediately by the actual value.
+!    However, in many cases additional sub-keywords (such as "(x)=", "(y)=",
+!    "(z)=" and others) are used within a line to point out the corresponding
+!    values. The order of sub-keywords in a line is insignificant.
+! 5) If there are a few words in a line, they are delimited by blanks and/or
+!    TABs (i.e. CHAR(9)). The number of blanks and TABs does not matter.
+!    Besides, a continuation indicator, ampersand (&), can be used at the end
+!    of line in order to write sub-keywords across lines.
+! 6) For example, in the line:
+!       Emitt_str  (cm*rad):   (x)=1.26E-5         (y)=1.38E-6
+!    the keyword is EMITT_STR, sub-keywords are (X)= and (Y)=, but (CM*RAD) is
+!    the optional comment noting the physical units in which the emittances
+!    are measured. The following lines in the input file will have the same
+!    meaning:
+!       EMITT_STR:   (Y)=  1.38E-6  (X)=  1.26E-5
+!    or
+!       Emitt_Str (Cm*RaD)  :   (y)=1.38E-6   &  ! comments for y
+!    !  Comments between continuation lines are also allowed
+!                               (x)=1.26E-5      ! comments for x
+! 7) By default, all the values (except certain cases described below)
+!    initially are set to zero. One need to describe the parameter in the
+!    passport only if its value is not equal to zero.
+! 8) The following sub-sections must be presented in the passport in the order
+!    specified:
+!      - General parameters of the beams (emittances, sigmas, vacuum, etc.).
+!      - Structure: list and order of the elements.
+!      - Descriptions of the elements listed in the STRUCTURE, and the
+!        referenced lattice functions.
+
+___________________________Working_Parameters___________________________
+! The keyword WORKING_PARAMETERS marks the beginning of the passport.
+! It can be in any position of non-comment line.
+!
+! The valid keywords for this section of the passport (General Parameters)
+! are: SEED, TRANSPORT, EMITT_STR, SIGMA_STR, EMITT_WEAK, SIGMA_WEAK, VACUUM,
+! GAMMA_WEAK, APERTURE, LEVELS, CURRENT_STR, EMITT_DAMP, EMITT_GROW,
+! EMITT_INTR, and BOUNDARY.
+! The order in which these keywords appear is insignificant.
+! The keywords SEED, VACUUM, CURRENT_STR, EMITT_DAMP, EMITT_GROW, EMITT_INTR
+! can be omitted.
+! The keywords CURRENT_STR, EMITT_DAMP, EMITT_GROW, EMITT_INTR describe the
+! strong beam parameters' dependence on time and can be used only for non-
+! equilibrium distributions (see description of the BOUNDARY keyword).
+
+Seed:            (comb_1)= 27  &  ! Must be 3*(2*n+1)^2, here n=1
+                 (comb_2)= 37  &  ! Must be odd number
+                 (comb_3)= 47     ! Can be arbitrary nonzero number
+! Seeds for the COMBO random number generator, taken from G. Marsaglia's set
+! of RNG's. If the seeds are omitted in the input file, the values will be
+! obtained by the current clock indications and also shown in the output file.
+! The purpose of seeds display is the ability of reproducing the old results,
+! that can be useful for debugging. Be aware that the seeds must not be chosen
+! arbitrary!
+
+Transport:  Lin
+! By now LIN is the only possible choice.
+
+Emitt_str  (cm*rad):  (x)=1.26E-5       (y)=1.38E-6
+Sigma_str  (cm, ..):  (z)=1.05263    (dE/E)=7.62E-4
+! Another possible description of these values is the reference to the weak
+! beam (if there is no asymmetry between weak and strong ones):
+! Emitt_str:  same_as_weak
+! Sigma_str:  same_as_weak
+!
+! These are betatron emittances, bunch length and relative energy spread of
+! the strong beam. They are used, together with the lattice functions of the
+! strong beam at the IP (beta, alpha, dispersion), for calculation of the
+! strong beam's transverse sizes versus the longitudinal displacement of
+! Collision Point (CP) from IP. The strong bunch is assumed to be Gaussian
+! in all directions (however, a non-Gaussian longitudinal distribution is
+! allowed, see for example the description of PC_2 element). Its transverse
+! sizes and their derivatives are used for calculation of the 6D symplectic
+! beam-beam kick, including an "energy kick".
+! In other words, the parameters of the opposite (strong) bunch, which are
+! necessary to perform a transformation through an Interaction Point, are
+! divided into two parts: common parameters for all IPs on the ring
+! (EMITT_STR and SIGMA_STR), and local parameters for each IP separately
+! (described in "IP" elements of the structure).
+
+Emitt_str1 (cm*rad):  (x)=2.56E-5       (y)=1.75E-6       (w)=0.345
+Emitt_str2 (cm*rad):  (x)=3.68E-5       (y)=2.34E-6       (w)=0.234
+! The strong bunch can be represented as a sum of two or three bunches with
+! different transverse emittances. This feature allows using in simulations
+! non-Gaussian strong bunches. The relative "weight" of harmonic is equal to
+! 1.0 for Emitt_str and (w) for Emitt_str1 and Emitt_str2. If the (w) value
+! is not defined, it is assumed to be zero by default. The ksi parameter is
+! defined in assumption that there is only one main harmonic in strong bunch's
+! emittance: Emitt_str. This is used to obtain the strong bunch's intensity
+! I_0. For tracking, the intensities of harmonics are equal to I_0/S, I_0*w1/S
+! and I_0*w2/S, where S=1+w1+w2.
+
+Emitt_weak (cm*rad):  (x)=<3: 1.78E-5 | 2.33E-5> &
+                      (y)=<3: 1.62E-6 | 2.12E-6>
+! These lines define the betatron emittances for the weak beam. The angle
+! brackets on the right of the equal sign mean that the specified parameter
+! should be scanned. There are three ways to describe how the parameter is
+! changed during the scan:
+!   (1)   <numb: value_1 : step>
+!   (2)   <numb: value_1 | value_k>
+!   (3)   <numb: value_1, value_2, value_3, ..., value_k>
+! Here "numb" is the scan "direction", which must lie in the range of 1 to
+! the scan dimension. If the scan is defined as in the cases (1) or (2), the
+! specified parameter will change from value_1 till value_k with a constant
+! step. If you want the step not to be a constant, use the explicit definition
+! of all the values in a sequence. In this case (3), the value of step can
+! even change the sign, but the number of values specified in the angle
+! brackets must correspond to the number of points in a scan sequence (i.e.
+! maximum index for this "direction"). A continuation indicator (&) can be
+! used inside angle brackets, but only after comma, i.e. in the case (3).
+
+Sigma_weak (cm, ..):  (z)=<3: 1.05263, 1.13102, 1.21526>   &
+                   (dE/E)=<3: 8.31E-4, &
+                              8.93E-4, &
+                              9.59E-4>
+! The values in the scan sequence are defined explicitly, since the step
+! is not a constant.
+!
+! Note that when a filename will change from ..._sig1 to ..._sig2 (i.e. a step
+! in the 3rd scan "direction" will be made), all the values of Emitt_weak and
+! Sigma_weak will change simultaneously, each one according to its own
+! specification.
+!
+! Emitt_weak and Sigma_weak are used for the following purposes:
+!
+!   1) The noises produced within LIN elements (if the keyword DAMPING is
+!      specified) are defined by the damping decrements in such a way that
+!      they provide the given equilibrium emittances and sigmas. However,
+!      this has a significance for the equilibrium distributions only.
+!   2) For non-equilibrium distributions these are the initial emittances and
+!      sigmas for the week bunch.
+!   3) The contour plot for the 2D distribution is built in the space of
+!      normalized amplitudes, as well as one-dimensional histograms are built
+!      in sigmas. So, a transformation from physical to normalized variables
+!      is necessary in the WATCH point (see below).
+!      Note that EMITT_WEAK and SIGMA_WEAK can be overridden in the WATCH
+!      element. It may be useful in some cases and quite permissible, since
+!      such a transformation does not affect the tracking.
+
+Gamma_weak:  4730.        (type)=E
+! Gamma (or relativistic) factor for the "weak" beam.
+! The type of particles in the "weak" beam can be either "E" for electrons
+! or "P" for protons. By default, if omitted, it is assumed to be "E". The
+! type is mainly needed for the luminosity calculation (when extracting the
+! number of particles in the "strong" beam from the space charge parameter)
+! and simulation of scattering on the residual gas.
+
+Vacuum:            (torr)=1.75E-9       (Z)=7.5
+! Vacuum and effective charge of nucleus for the weak beam. These parameters
+! are needed for simulation of scattering on the residual gas.
+
+Aperture  (sigm):     (x)=10.           (y)=25.           (z)=10.
+! Apertures for the weak beam in units of unperturbed sigmas. They are used
+! to calculate the beam's lifetime.
+
+Levels:  (X,Y)
+! Defines the plane in which a contour plot is built. Here it is the plane of
+! normalized betatron amplitudes (Ax, Ay). The valid letters are: X, Y, Z, R,
+! where R stays for SQRT(Ax**2 + Ay**2) and can be used for axial-symmetrical
+! round beams, for example: (Z,R).
+
+Boundary:          (time)=800        (dens)=100
+! For simulating of equilibrium distributions this defines the algorithm to
+! build boundaries and progress in steps (see also description of non-
+! equilibrium case hereinbelow). The possible sub-keywords are: TIME, DIST,
+! GAIN, DENS. The possible choice must be the two different keywords from
+! this set except (Dist,Gain), that appears as five possibilities:
+! (Time,Dist), (Time,Gain), (Time,Dens), (Dist,Dens), and (Gain,Dens).
+! The TIME parameter defines the tracking time for each step in units of the
+! maximum (among X, Y, Z) damping times.
+! The DIST parameter defines the distance between boundaries in units of
+! "levels". For example, in the old LIFETRAC version the model (Time,Dist) was
+! used with the (DIST)=2.5 (i.e. the equilibrium density at the successive
+! boundaries drops by a factor of EXP(2.5)).
+! The GAIN parameter also defines the distance between boundaries, but in
+! another manner: the next boundary is built on such a distance that the gain
+! on each step (or benefit, see the table at the very end of the output file)
+! will have the given value. Note that in this case the distance in units of
+! "levels" can vary from step to step.
+! The DENS parameter defines a "statistical density" at the new boundary to
+! build at the end of each step. This is a mean number of events when a test
+! particle falls inside a cell of sizes equal to the noise amplitudes. For
+! example, in our case the damping decrements for the full ring (see below)
+! are: (x)=3.058E-4  (y)=3.380E-4  (z)=6.925E-4. Since the distribution is
+! built in the (Ax, Ay) plane, the mentioned cell has the sizes of
+! 2*SQRT(3.058E-4) by 2*SQRT(3.380E-4), that is 0.03497*0.03677. The currently
+! selected algorithm is as follows:
+!   1) Tracking time for each step is 800*INT(1/3.058E-4) = 2616000 turns.
+!   2) The new boundary is selected on the level where the mean number of
+!      particles in the cell of 0.03497*0.03677 is equal to 100.
+! Note that in this case both the distance between successive boundaries and
+! the gain will vary from step to step. For more information on steps,
+! boundaries, etc., see Part. Acc. 52, p. 65, 1996.
+
+
+!          ==== NON-EQUILIBRIUM DISTRIBUTIONS ONLY ====
+!
+! For non-equilibrim distributions one has to use the sub-keywords PART and
+! STEP, which are incompatible with the other BOUNDARY sub-keywords and must
+! be specified simultaneously. For example:
+!
+!   Boundary:   (part)=10000    (step)=(10,50000)
+! Here PART is the number of particles to be tracked (must be <= 10^6) and
+! STEP is the number of turns for each step. The last option can be defined by
+! two different ways. If a single number is given without parentheses, it means
+! that all the steps will have the same number of turns. Another possibility
+! is to write two numbers within perentheses, separated by a comma. In this
+! case the first one is the number of turns for the ODD steps (1,3,5,...), and
+! the second one - for the EVEN steps (2,4,6,...).
+! Every STEP turns the obtained statistics (mean values, envelope matrix,
+! luminosity, histograms, line of maximum reached amplitudes, and 2D contour
+! plots) will be saved within the "ltr" file. By comparison of these records
+! one can observe how the initial distribution is changing with time.
+! Sometimes it is wise to define different number of turns for the odd and
+! the even steps. So, the short steps represent the snapshots of the
+! distribution, separated by the long steps, while the long steps represent
+! the distribution averaged over longer time, having much better statistical
+! reliability.
+! Note: (part)*(step) must be <= 2*10^9, otherwise data will be corrupted due
+! to integer overflow.
+!
+!   Distr_init:   filename
+! Defines the initial particle distribution and weights. Filename must be a
+! text file with a header (one line) and 7-column table of at least NPART
+! lines. The first line (header) must contain a single word: either NORM or
+! PHYS. The table represent initial particle coordinates and weights:
+! (X, Px,  Y, Py,  Z, dE/E,  Wght), where WGHT must be positive integer
+! numbers. The coordinates are normalized (in corresponding sigmas, NORM) or
+! physical (in centimeters and radians, PHYS).
+! If DISTR_INIT is omitted, the standard 6D Gaussian distribution will be
+! generated.
+!
+!   Current_str:   (decr)=2.3E-7
+! Defines the change in the strong beam's current. By now the only possible
+! sub-keyword is "(DECR)=", that is a constant decrement (or 1/lifetime). In
+! future more complicated formula with account of the loss rate's dependence
+! on the other parameters may be introduced.
+!
+!   Emitt_damp:   (x)=1.2E-8      (y)=1.1E-8       (z)=2.1E-8
+!   Emitt_grow:   (x)=3.4E-11     (y)=1.3E-11      (z)=7.2E-11
+!   Emitt_intr:   (x)=1.6E-10     (y)=3.2E-11      (z)=4.1E-9
+! These lines define the strong beam's emittances change with a time. Since
+! the relation between energy spread and longitudinal bunch's size does not
+! depend on time, their changes can be easily extracted from the longitudinal
+! emittance's change. Here EMITT_DAMP are the damping decrements, EMITT_GROW
+! are the constant growth rates, EMITT_INTR are the growth rates due to
+! intrabeam scattering. The last one depends on the bunch's current and on the
+! other emittances. In the simplified approximation implemented in the code by
+! now, the total emittance change after one turn is:
+!
+!   D_emitt_x = -Emitt_damp_x*Emitt_x + Emitt_grow_x +
+!                Emitt_intr_x*Curr*Emitt_y0/Emitt_y*Emitt_z0/Emitt_z,
+!
+! where CURR is the strong bunch's current (defined by the keyword CURRENT
+! within IP element descriptions and which may decrease due to finite
+! lifetime); EMITT_Y,Z and EMITT_Y0,Z0 are the present and the initial
+! vertical and longitudinal emittances, correspondingly.
+!
+!__________________End of General Parameters________________!
+
+
+Structure:
+! The keyword STRUCTURE means that the following words, till END_STRUCTURE,
+! are the names of global elements, which must be described in details below.
+! These names are CaSe InSeNsItIvE and can be delimited by blanks, TABs, or
+! <CR> (new lines). The order of the names is SIGNIFICANT, since the weak ring
+! is linked by the elements in the specified order.
+
+-/Dr_map_1  -/PC_1  /Dr_map_1  Watch_point  Main_IP  Dr_map_1  PC_1  -Dr_map_1
+  Map_to_Sext  Sext1  Map_Sext_Oct  Oct1  Map_Oct_Second_IP
+-/Dr_map_1  -/Dr_map_2  -PC_2  /Dr_map_2  -PC_3  /Dr_map_1  Second_IP
+  Dr_map_1  PC_3  Dr_map_2  PC_2  -Dr_map_2  -Dr_map_1
+  Map_to_Main_IP  Damping_2  Noise_2
+
+! The items in the structure may have arbitrary names, with the following
+! restrictions:
+!     - The name's length (including prefixes, if any) must not exceed 32
+!       characters.
+!     - The characters  !#:=  are prohibited.
+! There are three categories of elements in the structure:
+!     - Interaction Points (IP, IP_BASE).
+!     - Transport maps for the weak beam (DRIFT, MATRIX, SEXT, OCT, LIN, DAMP,
+!       NOISE).
+!     - Watching point (WATCH).
+! The Watching point must be present exactly one time without fail. All the
+! other elements can be encountered many times.
+!
+! There are two prefixes (minus sign and slash) which in many cases allow more
+! convenient description of the structure. Prefixes must be not applied to the
+! elements of type DAMP, NOISE, and WATCH.
+! The leading minus sign (-) means:
+!     - Inverse sign of alpha (Twiss parameter) and dispersion's derivative
+!       for the strong beam, when applied to IP (or IP_BASE) element.
+!     - Back transformation, when applied to any MAP element (DRIFT, MATRIX,
+!       SEXT, OCT, LIN).
+! WARNING: If the minus sign is applied to a LIN element, then damping, noise
+!          and scattering (if any) will be turned OFF for such a "back" map.
+! The leading slash (/) means:
+!     - Inverse sign of SHIFT values (see below), when applied to IP, SEXT,
+!       or OCT element.
+!     - Mirror-symmetrical transformation, when applied to MATRIX or LIN
+!       element. It can be also applied to DRIFT element, but has no effect.
+! If both slash and minus sign are specified, their order is insignificant,
+! so that -/PC_1 is completely equivalent to /-PC_1.
+
+End_structure
+! The keyword END_STRUCTURE terminates the listing of structure elements. The
+! rest of the passport must contain descriptions of the specified elements.
+! The order of descriptions does not matter. Besides, the lattice functions
+! (beta, alpha, dispersion) are defined at some particular points. Such
+! elements (of type LATT) must not be listed in the structure, but can be
+! referenced from the elements' descriptions.
+
+! Note: below this point all the elements' names, with the added leading hash
+! mark (but without prefixes!), become keywords delimiting the elements'
+! descriptions. The header line of the description should be as follows:
+! #Element_Name:Element_Type
+! Blanks and TABs are allowed between "#", ":", ELEMENT_NAME and ELEMENT_TYPE.
+! Here ELEMENT_TYPE can be one of the following:
+!   IP      - Interaction Point
+!   IP_BASE - Interaction Point (see the explanations hereafter)
+!   DRIFT   - Drift space
+!   MATRIX  - Transport 6*6 matrix
+!   SEXT    - Thin sextupole lens
+!   OCT     - Thin octupole lens
+!   LIN     - Linear map (transport type is LIN only)
+!   DAMP    - Damping matrix
+!   NOISE   - Noise matrix (may introduce correlations between noises)
+!   LATT    - Description of the lattice functions
+!   WATCH   - Watching point
+! The types from DRIFT till LIN can be also mentioned below as MAP.
+
+
+!____________________Interaction Points_____________________!
+! The valid keywords for IP elements are: LATT_STR, XI_BS, CURRENT, SLICES,
+! LUMI, NORM, ANGLE, CRAB, SHIFT, SHIFT_NOISE, NOISE_CORR and SHIFT_OSCIL.
+! All of them, except LATT_STR, can be omitted. Besides, XI_BS must be present
+! for IP_BASE element (see the details below).
+
+# Main_IP : IP_BASE
+! This is the header of the MAIN_IP element's description. The element's type
+! is "Interaction Point". If there are a few different IPs in the input file
+! (like in the present case), one of them must be of type IP_BASE, while the
+! others are of type IP. The only difference between IP_BASE and IP elements
+! is that the parameter XI_BS(y) must be defined for IP_BASE, while XI_BS for
+! others IPs will be calculated from this value automatically.
+
+Latt_str:  latt_main_IP
+! Defines (by the reference) the lattice functions (beta, alpha, dispersion)
+! of the strong beam. The actual definition of these functions will be given
+! in the LATT element named as LATT_MAIN_IP.
+! Another, more flexible, possibilities of the definition are given in PC_1
+! and PC_2 elements' descriptions.
+
+Xi_bs  (out,inp):     (x)=0.0703        (y)=0.05
+! Short variant (input file only) could be:
+!   xi_bs:   (y)=0.05
+! The XI definition is based on the following:
+! 1) The present values are "correct" only if beta_weak=beta_strong. In
+!    general case, the true value is XI=XI_bs*beta_weak/beta_strong. Here
+!    "_bs" suffix points out that XI_bs is not a normal XI, since it uses
+!    in a definition the "strong" beta-function instead of the "weak" one.
+!    The reason is that, in general case, we do not know the correct beta-
+!    functions at the IP for the weak beam, and we need not to know. On the
+!    other hand, the strong beam's beta-functions at the IP must be known.
+!    Indeed, since the test particle is tracked in physical coordinates,
+!    only parameters of the strong beam at the IP are necessary to calculate
+!    the beam-beam kicks. Actually, XI_BS(y) (together with the optional
+!    CURRENT value) is used for the definition of the strong beam's current
+!    (number of particles).
+! 2) XI_BS(x) can be calculated from XI_BS(y) and other strong beam's
+!    parameters, such as emittances, beta-functions, etc., so that one need
+!    not to define it in the input file. Nevertheless, in the output file
+!    the value of XI_BS(x) will be shown for the sake of completeness. The
+!    in-line comment "(out,inp)" reminds that only XI_BS(y) is the actual
+!    input parameter, while XI_BS(x) is the "output" parameter.
+! 3) If there are a few different IPs in the input file, XI_BS(y) must be
+!    defined for the IP_BASE only. For all the others IPs both XI_BS(x) and
+!    XI_BS(y) will be calculated and shown in the output file with "(out,out)"
+!    in-line comment. In the input file, XI_BS can be omitted for those IPs.
+!    Note that IP_BASE element may not be present in the STRUCTURE: it can be
+!    just a reference.
+! 4) If there is coupling, then the strong beam's transverse shape is
+!    calculated using 4D lattice functions and dispersion. In the XI_BS
+!    definition the "main" betas and correct beam sizes are used.
+
+Current:  1.2
+! Defines the relative strong bunch's current. By default, if this keyword
+! is omitted, the value is assumed to be equal to 1. This parameter can be
+! useful in cases when the number of particles differ for the different
+! strong bunches. Pay attention that the XI_BS values are always given for
+! the "unit" current. So, the actual value of XI for each IP is given by
+! the product of XI_BS and CURRENT values.
+!
+! If one need to change the currents for all the strong bunches by the same
+! factor, this can be done by two different ways:
+!   1) Change the XI_BS(y) value for the IP_BASE element (preferred).
+!   2) Change the CURRENT values for all the IP elements.
+
+Slices:  5          (alg)=3
+! Defines the number of slices to simulate the longitudinal distribution of
+! the strong beam. The second parameter, "(ALG)=", is optional. By default,
+! the 4-th slicing algorithm is assumed (see M. Furman et al., "Comparisons
+! of Beam-Beam Code Simulations", CBP Tech Note-59, 1995).
+
+Angle  (rad):         (x)=0.01          (y)=0.            (r)=0.05
+! (X) and (Y) define the crossing angles between the weak and the strong
+! equilibrium beam orbits at the IP. Note: these are the full angles, not
+! halves.
+! (R) defines the rotation (tilt angle) of the strong beam's frame in X-Y
+! plane with respect to the laboratory frame (for flat beams). Note that if
+! there is coupling in LATT_STR, or both horizontal and vertical dispersions
+! are non-zero, there will be a tilt which the program calculates from the
+! matrix of second-order moments. In this case the (R) value defines an
+! ADDITIONAL rotation, that normally should be zero. In general, the (R)
+! angle should be used with no coupling in LATT_STR and at least one
+! dispersion function (horizontal or vertical) equal to zero for the strong
+! beam. Such a simplified model allows to study the effect of tilt without
+! going deep into details of the strong beam's coupling.
+
+Crab   (rad):         (r)=0.01          (a)=0.
+! Define the "crab" rotation of the strong bunch. One should use separate
+! transformations (e.g. 6*6 matrix) to apply the "crab" rotation to the test
+! particle. In the IP element the CRAB values only define the strong beam's
+! orientation in the laboratory frame: (r) value is the total rotation angle;
+! (a) value is the azimuth angle in (XY) plane, so that (a)=0 corresponds to
+! crab rotation in the horizontal plane and (a)=pi/2 corresponds to crab
+! rotation in the vertical plane.
+
+!                     SEPARATION BETWEEN BUNCHES
+!
+! The total shift of the strong bunch (separation) can be expressed by the
+! following formula:
+!
+!   D = D_0 + D_noise + D_oscil,
+!
+! where D_0 is the constant separation (defined by the keyword SHIFT, see
+! the PC element description), D_noise is the random component, and D_oscil
+! is the oscillation component.
+
+Shift_noise (cm):     (x)=1.3E-4        (y)=2.7E-5        (z)=3.5E-2
+! Amplitude of random Gaussian coherent shifts of the strong bunch, measured
+! in centimeters.
+
+Noise_corr (turn):    (x)=100           (y)=120           (z)=100
+! Correlation time for the noises (in turns). The value of NOISE_CORR must
+! be .GE. 1. By default, if omitted, it is assumed to be equal to 1. This
+! keyword have a meaning only together with the SHIFT_NOISE.
+!
+! The resulting separation (random component) on each turn can be found by
+! the following recursive formula:
+!
+!   D_(n) = D_(n-1)*(1-1/Nc) + Shift_noise*SQRT(2/Nc-1/Nc**2)*R,
+!
+! where Nc is the value of NOISE_CORR, R is a random Gaussian number with
+! zero mean and the variance of 1. Note that for a multiparticle tracking
+! the value of R is the same for all the particles, since it describes the
+! coherent shift of the strong bunch.
+
+Shift_oscil (dir,tune,phas,ampl,damp): 3
+              x    0.53     0.78    5.7E-4   0     ! Horizontal
+              y    0.57     0.15    1.2E-4   0     ! Vertical
+              Y    0.14    -0.37    3.5E-4   0     ! Vertical, 2nd order
+! SHIFT_OSCIL describes the coherent oscillations of the strong bunch. After
+! the keyword the number of harmonics must be specified. Then the 5-column
+! table must be written with the number of rows equal to the number of
+! harmonics. The first column presents the direction: it should be one
+! character from the set of "X Y Z" (case insensitive). The second column
+! is the oscillation's tune. The third column is the initial phase of the
+! oscillation, normalized on 2pi. The next column is the initial amplitude
+! of the oscillation measured in centimeters. The last column is the damping
+! decrement of the oscillation. Note that if the damping is not a zero, such
+! cases should be considered as non-equilibrium and must correspond to the
+! BOUNDARY settings. The total shift of the strong bunch (oscillation
+! component) is given by the formula:
+!
+!   D = SUM {Ampl_i * EXP(-N*Damp_i) * COS(2pi*(N*Tune_i+Phas_i))},
+!      i=1,k
+!
+! where k is the number of harmonics for the given direction, N is the turn's
+! number.
+!_______________________________________
+
+# Second_IP : IP
+! Starts the description of the named element, which is also Interaction
+! Point. Unlike the Main_IP, this is head-on collision.
+
+Latt_str:  latt_2nd_IP_str
+! Lattice functions are described in the LATT element named LATT_2ND_IP_STR.
+! They are used to calculate the second-order moments, which in general case
+! define the strong beam transverse shape versus longitudinal coordinate
+! (azimuth).
+
+Current:  0.8
+! The strong bunch's current in this IP is 1.2/0.8=1.5 times less than the one
+! in the MAIN_IP.
+
+Slices:  6
+! Slicing algorithm 4 is used by default.
+
+Lumi: On
+! Calculate and output the luminosity for this IP. This line can be omitted
+! in the input file, since "ON" is the default setting.
+
+Norm: ON
+! Account this IP when calculatind the normal modes. This line can be omitted
+! in the input file, since "ON" is the default setting.
+!_______________________________________
+
+#PC_1:IP
+! Parasitic Crossing near the Main_IP.
+
+Latt_str:  latt_main_IP + Dr_map_1
+! The lattice functions for the strong beam will be calculated from ones at
+! the MAIN_IP and the transport map given in DR_MAP_1. Such a definition is
+! valid only if DR_MAP_1 is of type DRIFT or MATRIX (coupling is allowed).
+! In general, the minus sign can be used as well as the plus one, that means
+! the inverse map (if there are non-zero derivatives of lattice functions,
+! minus and plus signs are not equivalent). Besides, a few (up to 10) DRIFT
+! and MATRIX elements can be specified, separated by + or - signs (see for
+! example the PC_2 element below).
+!
+! It is also possible to use the minus sign as a prefix for the name of LATT
+! element (that means the inverse signs of derivatives), and slash as a
+! prefix for MAP elements (that means mirror-symmetrical map). For example,
+!   Latt_str:  -latt_main_IP - /Dr_map_1
+! means: take the lattice functions described in the LATT element named
+! LATT_MAIN_IP, but with inverse signs of derivatives, and applay the
+! back transformation through a section (beam line) which is mirror-symmetrical
+! to the DR_MAP_1.
+!
+! Here DR_MAP_1 is actually a map between MAIN_IP and PC_1 for the weak beam
+! (see the STRUCTURE). However, the strong lattice can be not the same as
+! the weak one. So, in general case, LATT_STR can be defined either as
+! "Latt_str: latt_main_IP + Dr_map_1_str", where DR_MAP_1_STR must be
+! described separately, or by the explicit reference to the lattice functions
+! as "Latt_str: latt_PC_1", where LATT_PC_1 must be of type LATT and also
+! described separately.
+!
+! Note that for the elements referenced in the STRUCTURE as -PC_1 or -/PC_1
+! the derivatives of the beta- and dispersion functions, taken from the
+! Latt_str definition, will have the inverse signs.
+
+Slices:  1
+! Usually, the beta-functions in the PC are much greater than the bunch
+! length, so that even a single slice is enough. This is a default value, so
+! this line can be omitted, but it will be present in the output file.
+
+! Since the CURRENT parameter is omitted for this IP, it is assumed to be 1.0
+! by default. This means that the strong bunch's current is 1.2 times less
+! than the one in the MAIN_IP. In the output file both CURRENT and XI_BS
+! parameters will be shown for the sake of completeness.
+
+Angle  (rad):         (x)=0.01          (r)=0.05
+! The same crossing and inclination angles as in the Main_IP.
+
+Shift  (cm):          (x)=1.2        (comp)=1.
+! Shift (separation) of the weak beam with respect to the strong one. Usually
+! it is equal to zero except the Parasitic Crossings. The (COMP) parameter
+! defines whether the compensation is applied to keep the equilibrium orbit
+! unperturbed.
+! Note that for the elements referenced in the STRUCTURE as /PC_1 or -/PC_1
+! the values of SHIFT(x,y) will have the inverse signs.
+!_______________________________________
+
+#PC_3:IP
+! Parasitic Crossing near the Second_IP.
+
+Latt_str:  latt_2nd_IP_str + Dr_map_1
+! The lattice functions will be calculated from ones at the SECOND_IP and the
+! transport map given in DR_MAP_1.
+
+Current:  0.8
+! The same strong bunch's current as in the Second_IP.
+
+Slices:  4          (alg)=0
+! Algorithm #0 is used to set arbitrary bunch disruption, which must be
+! defined in the table followed immediately. The number of lines in the table
+! must be equal to the number of slices. The first column represents the
+! slices' locations measured in the units of longitudinal sigma of the strong
+! bunch. The longitudinal slices' coordinates in the table must increase with
+! the line number, but need not to be symmetrical with respect to the bunch's
+! center. The second column is for the weights. The sum of the weights need
+! not to be equal to one; these are used only for the relative weight's
+! definition and do not affect the total strong bunch's current. The weights
+! also need not to be symmetrical, but usually they should be.
+!
+!           Long. Coord.          Weight
+              -1.345               1.
+              -0.456               3.5
+               0.456               3.5
+               1.345               1.
+
+Shift  (cm):          (y)=0.7        (comp)=1.
+! Instead of the horizontal separation in PC_1, the vertical separation is
+! used in PC_3 and PC_2.
+
+Lumi: Off
+! Do not calculate and do not output the luminosity for this IP.
+
+Norm: Off
+! Do not account this IP when calculatind the normal modes.
+!_______________________________________
+
+#PC_2: IP
+! Second Parasitic Crossing near the SECOND_IP.
+
+Latt_str:  latt_2nd_IP_str + Dr_map_1 &
+                           + Dr_map_2
+! The lattice functions will be calculated from ones at the SECOND_IP and the
+! transport maps given in DR_MAP_1 and DR_MAP_2.
+
+Current:  0.8
+! The same strong bunch's current as in the Second_IP.
+
+! Number of slices is equal to 1 by default.
+
+Shift  (cm):          (y)=1.6
+! The equilibrium orbit will be slightly disturbed by this PC, since it is
+! not compensated.
+
+Lumi: OFF
+! Do not calculate and do not output the luminosity for this IP.
+
+Norm: OFF
+! Do not account this IP when calculatind the normal modes.
+
+
+!______________________Transport Maps_______________________!
+! The transport map can be one of the following:
+!   - Drift space (DRIFT).
+!   - Linear 6*6 symplectic matrix (MATRIX).
+!   - Thin sextupole lens (SEXT).
+!   - Thin octupole lens (OCT).
+!   - Linear map defined by the betatron and synchrotron phase advances (LIN).
+!     In this case the lattice functions for the weak beam must be defined
+!     (referenced) at the both edges. Besides, the tunes dependence on the
+!     betatron amplitudes (cubic nonlinearity), on the actual energy of the
+!     particle (chromaticity) and on time (tune noise and modulation) can be
+!     introduced.
+!   - Damping matrix (DAMP). Unlike the MATRIX element, the damping matrix
+!     is not symplectic and its determinant should be < 1.
+!   - Noise matrix (NOISE). Gives the correlations between noises for the
+!     different degrees of freedom.
+
+#Dr_map_1: Drift
+! The map between MAIN_IP and PC_1, as well as one between SECOND_IP and PC_3,
+! is a drift space.
+
+Drift  (cm):  48.
+! Drift space length, must be .GE. 0. For a negative drift reference (back
+! transformation), use a minus sign with the element's name.
+!_______________________________________
+
+#  Dr_map_2  :MaTrIx
+! The map between PC_2 and PC_3 is a 6*6 matrix for the coordinate vector
+! (X, X', Y, Y', Z, dE/E). The following 36 words, delimited by blanks, TABs
+! or <CR>, must be matrix elements.
+
+  0.79150318          ! This is quite correct record of the
+ 13.28950148          ! first row of the matrix
+  0.0
+  0.0
+  0.0
+  0.0
+
+! The remaining 5 rows of the matrix:
+
+ -0.03127318   0.73833564   0.0          0.0          0.0         0.0
+  0.0          0.0          1.22407562  15.87722041   0.0         0.0
+  0.0          0.0          0.03612315   1.28548859   0.0         0.0
+  0.0          0.0          0.0          0.0          1.0         0.0
+  0.0          0.0          0.0          0.0          0.0         1.0
+
+! Matrix map is supposed to be symplectic and represents a piece of the
+! lattice, which has no nonlinear elements. It can be also used to introduce
+! a betatron coupling.
+!_______________________________________
+
+#Map_Sext_Oct: Drift
+! The map between Sext1 and Oct1.
+
+Drift  (cm):  20.
+!_______________________________________
+
+#Map_Oct_Second_IP: matrix
+! The map between Oct1 and Second_IP.
+
+  0.997        76.21        0.0          0.0          0.0         0.0
+ -7.86E-5      0.997        0.0          0.0          0.0         0.0
+  0.0          0.0          0.993        53.45        0.0         0.0
+  0.0          0.0         -2.61E-4      0.993        0.0         0.0
+  0.0          0.0          0.0          0.0          1.0         0.0
+  0.0          0.0          0.0          0.0          0.0         1.0
+!_______________________________________
+
+#Sext1: SEXT
+! Thin sextupole lens. As a rule, sextupoles should be used together with LIN
+! elements with chromaticity, in order to compensate betatron tunes beating,
+! while new series of resonances are introduced.
+
+Shift (cm):   (x)=-0.02   (y)=0.01
+! Shift of the sextupole with respect to the designed orbit.
+
+Value (rad/cm**2): 1.2E-3
+! dX'=-Value/2*((X-Shift_x)**2-(Y-Shift_y)**2)
+! dY'= Value*(X-Shift_x)*(Y-Shift_y)
+! Here X and Y are in centimeters; X' and Y' are in radians.
+!_______________________________________
+
+#Oct1: OCT
+! Thin octupole lens. As a rule, octupoles should be used together with LIN
+! elements with cubic nonlinearity, in order to compensate betatron tunes
+! beating, while new series of resonances are introduced.
+
+Shift (cm):   (x)=-0.01   (y)=0.02
+! Shift of the octupole with respect to the designed orbit.
+
+Value (rad/cm**3): 3.4E-3
+! dX'=-Value/6*(X-Shift_x)*((X-Shift_x)**2-3*(Y-Shift_y)**2)
+! dY'=-Value/6*(Y-Shift_y)*((Y-Shift_y)**2-3*(X-Shift_x)**2)
+! Here X and Y are in centimeters; X' and Y' are in radians.
+!
+! Note that for the SEXT and OCT elements referenced in the STRUCTURE with
+! the "-" prefix the VALUE will have the inverse sign; with the "/" prefix -
+! the values of SHIFT(x,y) will have the inverse signs.
+!_______________________________________
+
+#Map_to_Sext: Lin
+! The map between Main_IP and Sext1 is defined through the phase advances.
+!
+! The valid keywords for LIN elements are:  LATT_WEAK_BEG, LATT_WEAK_END,
+! TUNE_ADV, CHROM_1, CHROM_2, CHROM_3, CUBIC_NONL, TUNE_NOISE, NOISE_CORR,
+! TUNE_MODUL, DAMPING, and <SQRT_BETA>. All of them except LATT_WEAK_BEG,
+! LATT_WEAK_END and TUNE_ADV can be omitted.
+
+Latt_weak_beg:  latt_main_IP
+! Defines (by the reference) the lattice functions (beta, alpha, dispersion)
+! of the weak beam at the entrance of the element.
+
+Latt_weak_end:  latt_second_IP_weak - Map_Oct_Second_IP - Map_Sext_Oct
+! Defines (by the reference) the lattice functions (beta, alpha, dispersion)
+! of the weak beam at the exit of the element. The lattice functions at both
+! edges are necessary to build a local transport map.
+!
+! Note that the lattice functions may be not exactly the same as ones in the
+! real structure. They are only used for some transformations, and whenever
+! the transport map in the physical coordinates for this piece of the ring is
+! correct, the lattice functions are "correct" too, in spite of they can be
+! not "true".
+
+!                           TUNE ADVANCES
+!
+! The total tune advance for LIN elements can be expressed by the following
+! formula:
+!
+!   Q = Q_0 + dQ_coor + dQ_noise + dQ_modul,
+!
+! where Q_0 is the constant tune (defined by the keyword TUNE_ADV), dQ_coor
+! is the tune's dependence on the test particle's coordinates (chromaticity
+! and cubic nonlinearity of the betatron tunes), dQ_noise is the random
+! component, and dQ_modul is the modulation component. The last two ones
+! depend only on time and do not depend on particle's coordinates.
+
+Tune_adv (2pi*rad):     (x)=<1: 6.530 : 0.005>  &
+                        (y)=<2: 7.640 | 7.590>  (z)=0.013
+! These lines define the values of synchrotron tune (constant) and betatron
+! tunes, which will be scanned with a constant steps:
+! dQx=0.005
+! dQy=(7.590-7.640)/(11-1)=-0.005
+
+Chrom_1 (2pi*rad/(dE/E)):    (x)=0.01        (y)=-0.02
+! Linear betatron tunes change for a particle with a non-equilibrium energy.
+
+Chrom_2 (2pi*rad/(dE/E)**2): (x)=0.2         (y)=0.3
+! Second order betatron tunes change for a particle with a non-equilibrium
+! energy.
+
+Chrom_3 (2pi*rad/(dE/E)**3): (x)=3.0         (y)=4.0
+! Third order betatron tunes change for a particle with a non-equilibrium
+! energy.
+!
+! The total betatron tune change due to chromaticity will be:
+!   dQ = chrom_1*(dE/E) + chrom_2*(dE/E)**2 + chrom_3*(dE/E)**3
+
+Cubic_nonl (2pi*rad/ph.vol): (x)=1.23        (y)=-1.34      (xy)=-10.2
+! Cubic nonlinearity normalized on the phase volume. The betatron tune change
+! due to this effect will be:
+!   dQx = cubic_nonl(x)*emitt_x*(Ax**2) + cubic_nonl(xy)*emitt_y*(Ay**2)
+!   dQy = cubic_nonl(y)*emitt_y*(Ay**2) + cubic_nonl(xy)*emitt_x*(Ax**2)
+! where Ax and Ay are the normalized betatron amplitudes.
+
+Tune_noise (2pi*rad):        (x)=2.1E-4      (y)=1.4E-4      (z)=3.5E-5
+! Amplitude of random Gaussian tune's noise.
+
+Noise_corr (turn):           (x)=100         (y)=120         (z)=100
+! Correlation time for the noises (in turns). The value of NOISE_CORR must
+! be .GE. 1. By default, if omitted, it is assumed to be equal to 1. This
+! keyword have a meaning only together with the TUNE_NOISE.
+!
+! The resulting tune advance (random component) on each turn can be found by
+! the following recursive formula:
+!
+!   dQ_(n) = dQ_(n-1)*(1-1/Nc) + Tune_noise*SQRT(2/Nc-1/Nc**2)*R,
+!
+! where Nc is the value of NOISE_CORR, R is a random Gaussian number with
+! zero mean and the variance of 1. Note that for a multiparticle tracking
+! the value of R is the same for all the particles.
+
+Tune_modul (dir,xtun,phas,ampl): 2
+             y     0.04       0.25      2.2E-4
+             X     0.08      -0.57      3.1E-4
+
+! External modulation of the tunes. After the keyword the number of
+! harmonics must be specified. Then the 4-column table must be written with
+! the number of rows equal to the number of harmonics. The first column
+! presents the direction: it should be one character from the set of "X Y Z"
+! (case insensitive). The second column is the external modulation's tune.
+! The third column is the initial phase of the modulation, normalized on 2pi.
+! The last column is the amplitude of the modulation. The total tune change
+! (modulation component) is given by the formula:
+!
+!   dQ = SUM {Ampl_i * COS(2pi*(N*Xtun_i+Phas_i))},
+!       i=1,k
+!
+! where k is the number of harmonics for the given direction, N is the turn's
+! number.
+
+Damping:                     (x)=1.18E-4     (y)=1.38E-4     (z)=2.96E-4
+! Damping decrements, which define also the noises (for equilibrium
+! distributions only). The amplitudes of noises are calculated from the
+! condition that they should produce the equilibrium emittances as defined
+! above. For the betatron motion, both [normalized] coordinate and momentum
+! are affected by the damping and noise in the same proportion. For the
+! synchrotron motion only dE/E is affected.
+!
+! Pay attention that for non-equilibrium distributions DAMPING in the LIN
+! elements will not cause any noise. In principle, even for equilibrium
+! distributions more complicated (and more correct) scheme of damping and
+! noises can be introduced, including coupling and correlation between noises
+! for the different degrees of freedom (by mean of NOISE and DAMP matrixes).
+
+<Sqrt_beta> (m):             (x)=3.456       (y)=2.345    (leng)=1150.
+! Mean values of the square roots from the beta-functions. The averaging
+! should be done over LENG, which is the effective length of the map. These
+! parameters are necessary for simulation of scattering on the residual gas.
+! If there are a few linear maps in the structure, they may have different
+! values of <SQRT_BETA>, but the sum of 'LENG's should be equal to the total
+! perimeter of the weak ring.
+!_______________________________________
+
+#MAP_TO_MAIN_IP: LIN
+! The transport map between Second_IP and Main_IP.
+
+Latt_weak_beg: latt_second_IP_weak
+Latt_weak_end: latt_main_IP
+Tune_adv:                    (x)=5.48        (y)=6.52
+M_56:  -12.34
+! Instead of the synchrotron tune one may define the M_56 matrix element.
+! Either synchrotron tune or M_56 can be specified, but not both of them.
+
+Chrom_1:                     (x)=0.01        (y)=-0.02
+Chrom_2:                     (x)=0.002       (y)=0.003
+Chrom_3:                     (x)=0.003       (y)=0.004
+Cubic_nonl:                  (x)=1.23        (y)=-1.34      (xy)=-10.2
+<Sqrt_beta>:                 (x)=3.456       (y)=2.345    (leng)=1250.
+
+! This transport map is without damping and noise, which are defined by the
+! separate elements: DAMPING_2 and NOISE_2. Such approach is more correct
+! and requires very little (almost nothing) additional CPU time.
+
+
+# Damping_2: DAMP
+! Damping matrix is very similar with the normal transport matrix. The only
+! difference is that DAMP is not symplectic (determinant should be less than
+! 1). Coupling (non-zero non-diagonal blocks) may exist in DAMP matrix.
+
+ 0.999812221 -0.000263076  0.           0.           0.          -0.000197590
+-0.000000373  0.999812209  0.           0.           0.           0.000015708
+ 0.           0.           0.9998       0.           0.           0.
+ 0.           0.           0.           0.9998       0.           0.
+ 0.000010484  0.002624504  0.           0.           1.           0.000054938
+ 0.000000004 -0.000000064  0.           0.           0.           0.999207318
+
+! When calculating damping decrements for the full ring (in order to find the
+! damping times in turns), the determinants of diagonal 2*2 blocks are used.
+! So, this damping matrix makes the following contribution to x-damping:
+! -Ln(SQRT(0.999812221*0.999812209-0.000263076*0.000000373))=1.878026654E-4
+
+# Noise_2: NOISE
+! This is not a transport map, but a left-triangle matrix representing the
+! correlations between Gaussian noises, as follows:
+!   M_ij = <N_i * N_j>,  i=1...6,  j <= i
+! Here N_i and N_j are noises for i-th and j-th components of the 6-vector
+! (X, X', Y, Y', Z, dE/E). Of course, this matrix should be symmetrical,
+! but in the passport, in order to avoid duplications, the right-upper
+! corner (j > i) must be zero, so that it looks like a left-triangle.
+
+ 0.002694678  0.           0.           0.           0.           0.
+-0.000023303  0.000000683  0.           0.           0.           0.
+ 0.           0.           0.0005678    0.           0.           0.
+ 0.           0.           0.           0.000000034  0.           0.
+ 0.004087948 -0.000030595  0.           0.           0.008697370  0.
+ 0.000039458 -0.000000004  0.           0.           0.000072123  0.000000908
+
+! From this matrix the relevant Gaussian noises (with correlations) will be
+! defined and applied at the point where this element stays in the Structure.
+! Usually DAMP and NOISE elements should be specified in the Structure
+! together, for example just after MATRIX or LIN element (without damping).
+! One should use the special calculations to produce such matrixes from the
+! lattice of the ring's section.
+
+
+!_______Lattice functions' definitions (LATT elements)______!
+! Lattice functions (Twiss parameters and dispersion) are necessary for the
+! following purposes:
+!  - Calculation of the transverse strong bunch sizes versus the longitudinal
+!    displacement, when referenced as LATT_STR from the IP elements.
+!  - Normalization transformations, when referenced as LATT_WEAK from the LIN
+!    elements.
+! The valid keywords for LATT elements are:
+! BETA, ALPHA, DISP, DISP_DRV, BETA_C, ALPHA_C, COUPLING. All of them, except
+! BETA, can be omitted.
+
+#Latt_main_IP: LATT
+! Lattice functions for both the weak and the strong beams at the MAIN_IP.
+
+Beta    (cm):         (x)=50.18         (y)=2.10542
+! Beta functions in the specified point.
+
+Alpha   (-beta'/2):   (x)=0.            (y)=0.
+! Twiss parameters ALPHA in the specified point. Usually they are equal to
+! zero at the main IPs, so that this line can be omitted since all the values
+! are zero by default.
+
+Disp    (cm):         (x)=18.7
+! Defines the horizontal dispersion function in the specified point. Since the
+! vertical dispersion is not defined, it is assumed to be zero.
+
+Disp_drv:             (x)=0.05
+! Defines the derivative of the dispersion in the specified point.
+!_______________________________________
+
+#Latt_second_IP_weak: LATT
+! Lattice functions of the weak beam at the SECOND_IP.
+
+Beta   (cm):          (x)=47.26         (y)=3.064
+Disp   (cm):          (y)=4.33
+!_______________________________________
+
+#Latt_2nd_IP_str: LATT
+! Lattice functions (coupled!) of the strong beam at the SECOND_IP.
+
+Beta   (cm):          (x)=45.67         (y)=3.012
+Disp   (cm):          (y)=3.45
+
+Beta_c  (cm):         (x)=1.234         (y)=0.023
+Alpha_c (-beta'/2):   (x)=0.034         (y)=0.012
+! Define the coupled beta-functions. The following definitions are used (see
+! V.Lebedev and S.Bogacz, "Betatron Motion with Coupling of Horizontal and
+! Vertical Degrees of Freedom"):
+!       beta(x)=beta_x1                  beta(y)=beta_y2
+!      alpha(x)=alpha_x1                alpha(y)=alpha_y2
+!     beta_c(x)=beta_x2                beta_c(y)=beta_y1
+!    alpha_c(x)=alpha_x2              alpha_c(y)=alpha_y1
+! Note that there are strong conditions on the possible values of coupled
+! functions BETA_C and ALPHA_C, arisen from the requirement that coupling
+! parameter U is a real number.
+
+Coupling:             (u)=0.03          (v)=0.25
+! Defines additional coupling parameters. Actually, they are needed only to
+! choose one solution from the 2*2 possibilities. The possible values of U and
+! V are calculated from the lattice functions (V must be in the range of -0.5
+! to +0.5). If there is a discrepancy of more than 0.01 between the [possible]
+! calculated and the given values, it is considered to be an error. The
+! consequences of this rule are:
+!  - If some of Beta_c or Alpha_c values are non-zero, the Coupling parameters
+!    must be present (although, in some cases U and V can be equal to zero,
+!    even with coupling).
+!  - If the Coupling parameters are defined (non-zero), some of Beta_c or
+!    Alpha_c values must be defined too (non-zero).
+
+
+!______________________Watching Point_______________________!
+! The valid keywords for WATCH element are: EMITT_WEAK, SIGMA_WEAK and
+! CELL_SIZE. All of them are optional.
+
+#Watch_point: WATCH
+
+Emitt_weak (cm*rad):  (x)=2.5E-5        (y)=2.0E-6
+Sigma_weak (cm, ..):  (z)=1.0        (dE/E)=8.0E-4
+! EMITT_WEAK and SIGMA_WEAK override the values specified in the section
+! "General Parameters". They are used for the transformation from physical to
+! normalized variables and do not affect the tracking, but may cause a
+! "renormalization" of the obtained distributions. By default, if these
+! parameters are omitted, the ones described in "General Parameters" are used.
+
+Cell_size:          (hor)=0.01        (ver)=0.02
+! Sizes of the cells used to gather the 2D distribution. By default, both
+! of them are equal to 0.02. The smaller are the sizes, the larger is the
+! memory required to store the distribution. On the other hand, the distance
+! between sequential level lines becomes smaller on large amplitudes, and
+! one should use smaller cells to distinguish them. The default values are
+! optimal in most cases, but sometimes it could be wise to change them.
+
+_________________________End_Working_Parameters_________________________
+! This line terminates the third section of the task file.
+! The keyword END_WORKING_PARAMETERS can be in any position of the line, as
+! well as WORKING_PARAMETERS.

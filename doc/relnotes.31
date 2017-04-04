@@ -1,0 +1,560 @@
+
+                            Release Notes for Beam-Beam code LIFETRAC
+
+                            Software Version: 3.1
+
+                            April 1999
+
+                            Author: D.N. Shatilov
+
+                            Budker Institute of Nuclear Physic,
+                            Novosibirsk, Russian Federation
+
+
+
+1. OVERVIEW.
+
+   The Beam-Beam code LIFETRAC is intended for simulation of the equilibrium
+   distribution of the particles in circular electron-positron colliders.
+   One of the important features is the capability of simulating the beam's
+   halo and lifetime. A special tracking technique has been developed, which
+   allows to save huge amount of CPU time for such long-term simulations.
+
+   One of the new features implemented in the Version 3.1 is the possibility
+   of simulating non-equilibrium distributions, for example proton beams
+   (which have very small damping), or beams with external excitations
+   depending on time, or some parameters' dependence on time. For more
+   information see Chapter 3.
+
+   Description of the input and output syntax can be found in the following
+   files, which are located in the directory [...lifetrac.doc] (VMS systems)
+   or .../lifetrac/doc/ (UNIX systems):
+     readme.txt   - overview and command-line directives
+     explain.tsk  - description of the "task" files
+     explain.psp  - description of the "passport" (parameters of the working
+                    point)
+     explain.out  - description of the output
+
+   A special converting tool V30toV31 can be used to transform the output
+   "ltr" files produced by LIFETRAC Version 3.0 to the new format valid in
+   the Version 3.1.
+
+
+
+
+2. NEW FEATURES AND CORRECTIONS IN THE VERSION 3.1.
+
+2.1 New mean of XI_BS and CURRENT parameters.
+
+   In the Version 3.0 the CURRENT values were used to define the relative
+   currents (number of particles) of the strong bunches at different IPs.
+   The "base" IP was marked by the sub-keyword "(base)=", and others IPs
+   by the sub-keyword "(rel)=". The XI_BS values represented the actual
+   space charge parameters, which are calculated from the value of XI_BS(y)
+   for the "base" IP and relations between lattice functions (beta and
+   dispersion) and currents.
+
+   In the Version 3.1 the "base" IP is marked by the element's type: it is
+   a new type "IP_BASE". Correspondingly, the sub-keywords (BASE) and (REL)
+   are not more used with the keyword CURRENT. The XI_BS values now
+   correspond to the "unit" current. The actual space charge parameters for
+   each IP can be found as a product of XI_BS and CURRENT values (by default,
+   if omitted, the CURRENT value is assumed to be equal to 1.0).
+
+   Examples of the old and new descriptions of the same IP elements:
+
+   ___________________________Version 3.0___________________________
+
+   # IP_1 : IP
+   Current:  (base)=0.8
+   XI_BS (out,inp):   (x)=0.01    (y)=0.04   ! Actual space charge parameters
+   ............................
+   ............................
+
+   # IP_2 : IP
+   Current:  (rel)=1.2
+   XI_BS (out,out):   (x)=0.012   (y)=0.24   ! Actual space charge parameters
+   ............................
+   ............................
+
+   ___________________________Version 3.1___________________________
+
+   # IP_1 : IP_BASE
+   Current:  0.8
+   XI_BS (out,inp):   (x)=0.0125  (y)=0.05   ! Space charge for "unit" current
+   ............................
+   ............................
+
+   # IP_2 : IP
+   Current:  1.2
+   XI_BS (out,out):   (x)=0.01    (y)=0.2    ! Space charge for "unit" current
+   ............................
+   ............................
+   _________________________________________________________________
+
+   If the currents of all the strong bunches are equal, the keyword CURRENT
+   can be omitted for all the IPs, including the "base" one. Remember that in
+   the Version 3.0 the keyword CURRENT must be specified for the "base" IP.
+   Besides, the CURRENT value now can be equal to zero for the "base" IP,
+   that means "no collision" (such element with zero current will be ignored
+   when tracking through the structure will be performed).
+
+
+2.2 More flexibility for using of the "base" IP.
+
+   The "base" IP now need not to be included in the structure. For example,
+   consider the case when there is no collision at the main IP, but there is
+   collision at the Parasitic Crossing (PC). The parameters of the PC can be
+   described through the parameters of IP and the transport map between them.
+   So, the IP ("base") can be presented in the input file in order to define
+   the parameters of PC, but it may be not included in the structure. The
+   same result can be also obtained if the "base" IP is included in the
+   structure, but with the value of CURRENT equals to zero.
+
+
+2.3 New keyword LUMI for IP elements.
+
+   In the Version 3.0 the luminosity was calculated for each IP and shown
+   in the table just after the envelope matrix ("ltr" file). In order to
+   avoid unnecessary output, especially in case of many Parasitic Crossings,
+   the possibility to cancel luminosity calculation for some IP elements
+   has been introduced. It can be done with the help of LUMI keyword:
+
+     Lumi: off
+
+   The possible choices are "OFF" and "ON" (case insensitive). By default
+   it is assumed to be "ON".
+
+
+2.4 New types of elements: Sextupole and Octupole.
+
+   Nonlinear thin lenses can be included in the structure with the help of
+   SEXT and OCT elements. As a rule, they should be used together with LIN
+   elements with chromaticity and cubic nonlinearity, in order to compensate
+   betatron tunes beating, while new series of resonances are introduced. The
+   valid keywords for such elements are VALUE and SHIFT. For example:
+
+    # S1: Sext                ! Name of the element is "S1", type is SEXTupole
+    Shift (cm):   (x)=0.02    ! Shift with respect to the designed orbit
+    Value (rad/cm**2): 1.2E-3 ! dX'=-Value/2*(X**2-Y**2)  dY'=Value*X*Y
+
+    # O1: Oct                 ! Name of the element is "O1", type is OCTupole
+    Shift (cm):   (y)=0.01    ! Shift with respect to the designed orbit
+    Value (rad/cm**3): 3.4E-3 ! dX'=-Value/6*X*(X**2-3*Y**2)
+                              ! dY'=-Value/6*Y*(Y**2-3*X**2)
+
+   Here X and Y are the coordinates with respect to the multipole's center
+   (that is particle's coordinates minus shifts) in centimeters; X' and Y'
+   are the particle's angles in radians.
+
+
+2.5 New types of elements: Damping and Noise matrixes.
+
+   In the Version 3.0 there is only one possibility to define the damping
+   and noises: by the keyword DAMPING within elements of type LIN. In fact
+   these are the decrements of betatron and synchrotron oscillations. Since
+   the betatron and synchrotron parts of the coordinates depend on beta and
+   dispersion functions, such damping decrements are not "local" parameters.
+   Besides, in the reality there are correlations between noises for different
+   degrees of freedom, which depend on the internal structure of the element,
+   more complicated then the simple phase advances. It turned out that, when
+   the structure is disturbed (for example by beam-beam interaction), these
+   correlations may give significant effects on the equilibrium distribution.
+   In order to improve the model, new types of elements have been introduced,
+   which allow to simulate the damping and noise more adequately.
+
+   Damping matrix (DAMP) is very similar with the normal transport matrix.
+   The only difference is that DAMP is not symplectic (determinant should be
+   less than 1). Coupling (non-zero non-diagonal blocks) may exist in DAMP
+   matrix.
+
+   Noise matrix (NOISE) is not a transport map. It is a left-triangle matrix
+   representing the correlations between Gaussian noises, as follows:
+     M_ij = <N_i * N_j>,  i=1...6,  j <= i
+   Here N_i and N_j are noises for i-th and j-th components of the 6-vector
+   (X, X', Y, Y', Z, dE/E). Of course, this matrix should be symmetrical,
+   but in the passport, in order to avoid duplications, the right-upper
+   corner (j > i) must be zero, so that it looks like a left-triangle. From
+   this matrix the relevant Gaussian noises (with correlations) will be
+   defined and applied at the point where this element stays in the Structure.
+
+   Usually DAMP and NOISE elements should be specified in the Structure
+   together, for example just after MATRIX or LIN element (without damping).
+   One should use the special calculations to produce such matrixes from the
+   lattice of the ring's section.
+
+
+2.6 New prefix for the transport maps.
+
+   In addition to the prefix "-" (minus sign), which means the back
+   transformation, the elements of types MATRIX and LIN can be now referenced
+   in the structure with the prefix "/" (slash), that means the mirror-
+   symmetrical transport map. For DRIFT elements "/" can be also used, but
+   has no effect.
+
+   For MATRIX elements it means:  /Matr = MI * Matr^(-1) * MI, where MI is
+   a diagonal matrix with the elements  (1, -1, 1, -1, -1, 1).  For LIN
+   elements it means: change the lattice functions at the entrance by the
+   ones at the exit with the inverse signs of derivatives (ALPHA and
+   DISP_DRV), and vise versa.
+
+   It is also possible to specify both prefixes. The order does not matter,
+   so that  -/Matr  and  /-Matr  are completely equivalent.
+
+
+2.7 References to the lattice functions.
+
+   The lattice functions (beta, alpha, dispersion) for the elements of types
+   IP, LIN, WATCH are defined by the reference to the element of type LATT,
+   with the possible up to 10 sequential transport maps of types DRIFT and
+   MATRIX (without x-y coupling). The names of these elements are delimited
+   by "+" or "-" signs, with mandatory spaces between them. The new features
+   implemented in the Version 3.1 are:
+
+      Prefix "/" can be used with the names of transport maps, that means
+      mirror-symmetrical map.
+
+      LATT element (the first name in the reference) can be referenced with
+      the prefix "-" (minus sign), that means the inverse sign of derivatives
+      (ALPHA and DISP_DRV).
+
+   Note that spaces are not allowed between these prefixes and the actual
+   elements' names. For example, the following definition can be used:
+
+     Latt_str:  -LATT_1 + MAP_1 - /MAP_2
+
+   That means: take the lattice functions defined in the LATT element named
+   as LATT_1, but with the inverse signs of derivatives (ALPHA and DISP_DRV),
+   then apply sequentially transformation through the MAP_1 and back
+   transformation through a section which is mirror-symmetrical to the MAP_2.
+
+
+2.8 Transformations in WATCH element.
+
+   The transformation is optional and does not affect the tracking; it is
+   used only to change the way how to obtain the "normalized" coordinates.
+   In the Version 3.1 both prefixes ("-" and "/") can be used with any name
+   of map element, for example:
+
+     Transform:  -/matrix_1 + /matrix_2 - matrix_3
+
+
+2.9 Name of the reduced version of the main output file.
+
+   In the Version 3.0, the reduced version of "ltr" file (produced when the
+   action REDUCE is specified in the task file) has the same filename but
+   the suffix "redu" instead of "ltr". In the Version 3.1 it has the same
+   suffix "ltr" but leading underscore in the filename. For example, reduced
+   version of the file "filename.ltr" will be named as "_filename.ltr".
+
+
+2.10 Writing headers to the "trac" output files.
+
+   The TRACK actions in the task files are used to produce a turn-by-turn
+   output of the test particle's coordinates. One can specify this action
+   many (up to 20) times with the different initial conditions, and all the
+   output will be written sequentially to the "trac" file. There are two
+   possible sub-keywords for the TRACK action: "(NORM)=" and "(PHYS)=".
+   In the Version 3.1, the word inside parentheses can be enclosed in
+   underscores, for example "(_Norm_)=", that means the headers will not
+   be written to the output file. This new feature may be helpful when such
+   an output is used as an input file for another program, for example PAW.
+
+
+2.11 Type of particles in the "weak" beam.
+
+   An additional sub-keyword is introduced for the HAMMA_WEAK keyword, which
+   defines the type of particles in the "weak" beam. For example:
+
+     Hamma_weak:  4730.        (type)=E
+
+   The type of particles can be either "E" for electrons or "P" for protons.
+   By default, if omitted, it is assumed to be "E". The type is mainly
+   needed for the luminosity calculation (when extracting the number of
+   particles in the "strong" beam from the space charge parameter) and
+   simulation of scattering on the residual gas.
+
+
+2.12 Changed optional sub-keyword for SLISES.
+
+   In order to specify what slicing algorithm is used for the strong bunch's
+   disruption, one can use a sub-keyword "(ALG)=" with the SLICES keyword. In
+   the previous release 3.0 it was "ALG=". Now the parentheses are added to
+   keep all the sub-keywords in the same style.
+
+
+2.13 Coherent shifts of the "strong" bunch, depending on time.
+
+   The total shift of the strong bunch (separation) can be expressed by the
+   following formula:
+
+     D = D_0 + D_noise + D_oscil,
+
+   where D_0 is the constant separation (defined by the keyword SHIFT),
+   D_noise is the random component, and D_oscil is the oscillation component.
+   The last two ones are the new features implemented in the Version 3.1.
+
+2.13.1 Random noise.
+
+   The new keywords SHIFT_NOISE and NOISE_CORR are used to describe the noise
+   amplitude (in centimeters) and correlation time (in turns), for example:
+
+     Shift_noise (cm):    (x)=1.3E-4     (y)=2.7E-5     (z)=3.5E-2
+     Noise_corr (turn):   (x)=100        (y)=120        (z)=100
+
+   The value of NOISE_CORR must be .GE. 1. By default, if omitted, it is
+   assumed to be equal to 1. The resulting separation (random component) on
+   each turn can be found by the following recursive formula:
+
+     D_(n) = D_(n-1)*(1-1/Nc) + Shift_noise*SQRT(2/Nc-1/Nc**2)*R,
+
+   where Nc is the value of NOISE_CORR, R is a random Gaussian number with
+   zero mean and the variance of 1. Note that for a multiparticle tracking
+   the value of R is the same for all the particles, since it describes the
+   coherent shift of the strong bunch.
+
+2.13.2 Oscillation harmonics.
+
+   Coherent oscillations of the strong bunch can be described by the new
+   keyword SHIFT_OSCIL, for example:
+
+     Shift_oscil (dir,tune,phas,ampl,damp): 3
+                   x    0.53     0.78    5.7E-4   0.0013
+                   y    0.57     0.15    1.2E-4   0.0011
+                   Y    0.14    -0.37    3.5E-4   0.0015
+
+   After the keyword the number of harmonics must be specified. Then the
+   5-column table must be written with the number of rows equal to the number
+   of harmonics. The first column presents the direction: it should be one
+   character from the set of "X Y Z" (case insensitive). The second column
+   is the oscillation's tune. The third column is the initial phase of the
+   oscillation, normalized on 2pi. The next column is the initial amplitude
+   of the oscillation measured in centimeters. The last column is the damping
+   decrement of the oscillation. Note that if the damping is not a zero, such
+   cases should be considered as non-equilibrium (see Chapter 3). The total
+   shift of the strong bunch (oscillation component) is given by the formula:
+
+     D = SUM {Ampl_i * EXP(-N*Damp_i) * COS(2pi*(N*Tune_i+Phas_i))},
+        i=1,k
+
+   where k is the number of harmonics for the given direction, N is the
+   turn's number.
+
+
+2.14 Test particle's tunes dependence on time.
+
+   The total tune advance for LIN elements can be expressed by the following
+   formula:
+
+     Q = Q_0 + dQ_coor + dQ_noise + dQ_modul,
+
+   where Q_0 is the constant tune (defined by the keyword TUNE_ADV), dQ_coor
+   is the tune's dependence on the test particle's coordinates (chromaticity
+   and cubic nonlinearity of the betatron tunes), dQ_noise is the random
+   component, and dQ_modul is the modulation component. The last two ones
+   depend only on time and do not depend on particle's coordinates. These are
+   the new features implemented in the Version 3.1.
+
+2.14.1 Random noise.
+
+   The new keywords TUNE_NOISE and NOISE_CORR are used to describe the noise
+   amplitude and correlation time (in turns), for example:
+
+     Tune_noise (2pi*rad):  (x)=2.1E-4     (y)=1.4E-4     (z)=3.5E-5
+     Noise_corr (turn):     (x)=100        (y)=120        (z)=100
+
+   The value of NOISE_CORR must be .GE. 1. By default, if omitted, it is
+   assumed to be 1. The resulting tune advance (random component) on each
+   turn can be found by the following recursive formula:
+
+     dQ_(n) = dQ_(n-1)*(1-1/Nc) + Tune_noise*SQRT(2/Nc-1/Nc**2)*R,
+
+   where Nc is the value of NOISE_CORR, R is a random Gaussian number with
+   zero mean and the variance of 1. Note that for a multiparticle tracking
+   the value of R is the same for all the particles.
+
+2.13.2 Modulation harmonics.
+
+   External modulations of the tunes can be described by the new keyword
+   TUNE_MODUL, for example:
+
+     Tune_modul (dir,xtun,phas,ampl): 2
+                  y     0.04       0.25      2.2E-4
+                  X     0.08      -0.57      3.1E-4
+
+   After the keyword the number of harmonics must be specified. Then the
+   4-column table must be written with the number of rows equal to the number
+   of harmonics. The first column presents the direction: it should be one
+   character from the set of "X Y Z" (case insensitive). The second column
+   is the external modulation's tune. The third column is the initial phase
+   of the modulation, normalized on 2pi. The last column is the amplitude
+   of the modulation. The total tune change (modulation component) is given
+   by the formula:
+
+     dQ = SUM {Ampl_i * COS(2pi*(N*Xtun_i+Phas_i))},
+         i=1,k
+
+   where k is the number of harmonics for the given direction, N is the
+   turn's number.
+
+
+
+
+3. SIMULATING OF NON-EQUILIBRIUM DISTRIBUTIONS.
+
+   The special tracking technique developed in LIFETRAC was intended for the
+   simulation of beam tails and lifetime. However, it can be applied only to
+   the systems with a strong enough damping, where relaxation time is much
+   shorter than the simulation time (e.g. electron-positron colliders). On the
+   other hand, in many cases the relaxation time is very long (for example,
+   consider proton beams which have almost no damping), or there are external
+   excitations depending on time, or some parameters' dependence on time. In
+   this cases the goal of simulations is not to obtain the equilibrium
+   distribution, but to observe how the initial distribution is changing with
+   a time. Obviously, for such cases the ergodic theorem allowing to replace
+   averaging over particles by averaging over time cannot be more used, so one
+   have to simulate many test particles in order to represent the distribution
+   within the weak beam. To describe such a tracking model, the new parameters
+   and new features were introduced in the "passport" and "task" files.
+   Besides, there are some peculiarities of output information for such a
+   model.
+
+
+3.1 New sub-keywords for BOUNDARY.
+
+   For simulating of non-equilibrium distributions one has to specify the
+   appropriate options with the BOUNDARY keyword, like in the following
+   example:
+
+     Boundary:   (part)=1000     (step)=50000
+
+   The sub-keywords PART and STEP are incompatible with the other BOUNDARY
+   sub-keywords and must be specified simultaneously. Here PART is the number
+   of particles to be tracked and STEP is the number of turns for each step.
+
+   Initially the particles are distributed within 6D phase space according
+   to the Gaussian. Every STEP (e.g. 50000) turns the obtained statistics
+   (mean values, envelope matrix, luminosity, histograms, line of maximum
+   reached amplitudes, and 2D contour plots) will be saved within the "ltr"
+   file. By comparison of these records one can observe how the initial
+   distribution is changing with a time.
+
+
+3.2 Strong beam's parameters dependence on time.
+
+   For the long-term simulations even parameters of the strong buch should
+   be considered as non-constant. They are changing not due to beam-beam
+   interaction, but by some internal reasons. In particular, for the proton
+   beams the emittances grow (due to intrabeam scattering, lattice noise,
+   etc.) and the bunch's current decreases (due to finite lifetime). In
+   order to present these effects, the new keywords were introduced in the
+   first passport's section (General Parameters, just before the Structure).
+
+3.2.1 Strong bunch's current.
+
+   The new keyword CURRENT_STR defines the change in the strong beam's
+   current:
+
+     Current_str:   (decr)=2.3E-7
+
+   By now the only possible sub-keyword is "(DECR)=", that is a constant
+   decrement (or 1/lifetime). In future more complicated formula with account
+   of the loss rate's dependence on the other parameters may be introduced.
+
+3.2.2 Strong bunch's emittances.
+
+   The new keywords EMITT_DAMP, EMITT_GROW and EMITT_INTR define the strong
+   beam's emittances change with a time. Since the relation between energy
+   spread and longitudinal bunch's size does not depend on time, their
+   changes can be easily extracted from the longitudinal emittance's change.
+   The syntax is presented in the following examples:
+
+     Emitt_damp:   (x)=1.2E-8      (y)=1.1E-8       (z)=2.1E-8
+     Emitt_grow:   (x)=3.4E-11     (y)=1.3E-11      (z)=7.2E-11
+     Emitt_intr:   (x)=1.6E-10     (y)=3.2E-11      (z)=4.1E-9
+
+   Here EMITT_DAMP are the damping decrements, EMITT_GROW are the constant
+   growth rates, EMITT_INTR are the growth rates due to intrabeam scattering.
+   The last one depends on the bunch's current and on the other emittances.
+   In the simplified approximation implemented in the code by now, the total
+   emittance change after one turn is:
+
+     D_emitt_x = -Emitt_damp_x*Emitt_x + Emitt_grow_x +
+                  Emitt_intr_x*Curr*Emitt_y0/Emitt_y*Emitt_z0/Emitt_z,
+
+   where CURR is the strong bunch's current (defined by the keyword CURRENT
+   within IP element descriptions and which may decrease due to finite
+   lifetime); EMITT_Y,Z and EMITT_Y0,Z0 are the present and the initial
+   vertical and longitudinal emittances, correspondingly.
+
+
+3.3 The DAMPING keyword in LIN elements description.
+
+   For equilibrium distributions the keyword DAMPING in LIN elements defines
+   both the damping and the noises, which correspond to the equilibrium
+   emittances and sigmas of the weak beam. For non-equilibrium distributions,
+   since EMITT_WEAK and SIGMA_WEAK represent the initial (not equilibrium!)
+   values, this approach cannot be used. However, one can continue using the
+   DAMPING even for such cases, but have to be aware that it will not cause
+   any noises.
+
+
+3.4 Changes in the output "ltr" file.
+
+   The crossing lines ("Line_cross") and the table at the end of file are
+   absent. The "Turn_count" presents the following values for each step:
+
+     (all)  - Number of performed turns since the very beginning (all the
+              steps).
+     (step) - Number of performed turns for the given step only.
+     (part) - Number of particle-turns for the given step.
+     (died) - Number of died particles since the very beginning (all the
+              steps).
+
+   Note that once a particle died it will no more restarted, so the tracking
+   will be continued for the remaining particles only. Coordinates of the
+   particles died during the given step (if any) will be shown just after
+   the "Turn_count" line. Besides the coordinates, the particle number and
+   the turn number on which it died will be shown also.
+
+   The tables of mean values (envelope matrix) and luminosity will be written
+   on each step and present the statistics obtained during the given step
+   only. Unlike in the equilibrium case, these tables are extended in order
+   to present two types of values: <averaging over all the turns, all the
+   particles> and <the last 10 turns, averaging over all the particles>. Of
+   course, the last one has much less statistical reliability, but can give
+   an insight on the distribution's evolution with a time.
+
+   Similar, there are two types of histograms and two types of level lines:
+   summarizing all the turns, all the particles, and for the last 10 turns
+   only. In particlular, the contour lines named as "Line-NN" are for the
+   last 10 turns, while the lines named as "Line_NN" are for the total step.
+
+
+
+3.5 Additional binary data files.
+
+   One can save also additional (apart from that is written to "ltr" file)
+   binary data files. These files have the same name as the main output file
+   but the different extensions (suffixes) and the version corresponding to
+   the step number:
+
+   coor - 6D coordinates of all the particles saved on the last step's turn.
+          If this option is specified, the initial coordinates of all the
+          particles will be saved too.
+
+   dens - 2D distribution (all the particles) obtained during the step.
+
+   d6   - 6D distribution (10000 points averaged over all the particles)
+          obtained during the step.
+
+   To save these data files one has to use the SAVE action in the "task"
+   file, for example:
+
+     Save:   (coor)=(0:0)    (dens)=(1:0)     (d6)=(1:5)
+
+   That means to save one "coor" file (on the final turn), all the "dens"
+   files (on each step) and "d6" files from the first five steps. Besides,
+   the "coor" file corresponding to the initial distribution will be saved
+   too, since the COOR option is specified. See the file explain.tsk for
+   more information on the SAVE keyword.

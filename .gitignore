@@ -1,0 +1,5 @@
+src/**.f90
+src/math/**
+src/lifetra**
+**.o
+**.mod

@@ -1,0 +1,70 @@
+
+                            Release Notes for Beam-Beam code LIFETRAC
+
+                            Software Version: 3.2
+
+                            March 2000
+
+                            Author: D.N. Shatilov
+
+                            Budker Institute of Nuclear Physic,
+                            Novosibirsk, Russian Federation
+
+
+
+1. OVERVIEW.
+
+   The Beam-Beam code LIFETRAC is intended for simulation of the equilibrium
+   distribution of the particles in circular electron-positron colliders.
+   One of the important features is the capability of simulating the beam's
+   halo and lifetime. A special tracking technique has been developed, which
+   allows to save huge amount of CPU time for such long-term simulations.
+   Besides, there is a possibility of simulating non-equilibrium distributions,
+   for example proton beams (which have very small damping), or beams with
+   external excitations depending on time, or some parameters' dependence on
+   time.
+
+   Description of the input and output syntax can be found in the following
+   files:
+     readme.txt   - overview and command-line directives
+     explain.tsk  - description of the "task" files
+     explain.psp  - description of the "passport" (parameters of the working
+                    point)
+     explain.out  - description of the output
+
+
+
+2. NEW FEATURES AND CORRECTIONS IN THE VERSION 3.2.
+
+2.1 New Random Number Generator.
+
+   In the previous Version the RNG's RNDM and NORRAN were used, taken from
+   CERNLIB. In the Version 3.2 the COMBO generator is used, taken from
+   G. Marsaglia's set of RNG's. Consequently, the sub-keywords for the SEED
+   keyword were replaced: (comb_1), (comb_2) and (comb_3) instead of (rndm),
+   (norr_1) and (norr_2).
+
+
+2.2 Normalization transformation.
+
+   In the Version 3.2 the Normalization transformation is generalized in
+   order to allow any 6D coupling. First of all, a 6*6 transport matrix is
+   obtained by the tracking. Then, the eigenvalues (that give us the tunes of
+   the normal modes) and eigenvectors are calculated from this matrix. The
+   eigenvectors are used to find the normal modes and the normalization
+   matrix.
+
+2.2.1 New keyword NORM for IP elements.
+
+   When calculating the transport matrix, the IP elements (beam-beam
+   interaction) can be either included (Norm: ON) or excluded (Norm: OFF). By
+   default, it is ON.
+
+2.2.2 WATCH element description.
+
+   The keywords LATT_WEAK and TRANSFORM were excluded from the element's
+   description, since the normalization matrix is obtained directly from the
+   transport matrix. So, in most cases the WATCH element description is empty.
+   However, the keywords EMITT_WEAK and SIGMA_WEAK are allowed, which may
+   override the values specified in the section "General Parameters", causing
+   "renormalization" of the obtained distributions.

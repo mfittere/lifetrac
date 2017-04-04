@@ -1,0 +1,8 @@
+insert print statements:
+CASE (138) ! EXT_DNRU
+  IF (eparm(1) == 0 .AND. eparm(2) == 0) RETURN
+  print *, 'eparm',eparm(1:6)
+  print *, 'before',coord(1:6)
+  coord(2:4:2) = coord(2:4:2) + eparm(1:2)*eparm(5:6)
+  print *, 'after',coord(1:6)
+
