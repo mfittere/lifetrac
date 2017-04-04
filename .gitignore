@@ -1,5 +1,6 @@
 src/**.f90
 src/math/**
 src/lifetra**
+src/makefile
 **.o
 **.mod
