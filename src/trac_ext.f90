@@ -613,17 +613,23 @@ CASE (109) ! EXT_TLHC
     IF (rr <= eparm(2)) dd = dd * (r2 / ra**2 - 1) / (eparm(6)**2 - 1)
     coord(2:4:2) = coord(2:4:2) - eparm(1) * eparm(10) * dd * xy
   END IF
+! map developed for r2=2.386 mm and 10 sig = 3.17 mm
+! 10 sig/r2 = 1.33
   rb = 1.33_8 * eparm(2)
   IF (eparm(7) == 0.OR.rr > rb) RETURN  ! no mapping outside unit circle
   uv = xy / rb                ! normalize to 10sigma = 1.33 outer radius
   CALL TL_LENS_HC
+  pp = dp
+! - e-lens in hor. plane
+! - for s-shape flip x and then x', for u-shape simply add kicks
+! - for e-lens in v-plane apply rotation of proton beam coordinates (EXT_TILT)
+!   before and after EXT_TLHC
   IF (eparm(9) /= 0) THEN
-    pp = dp
     uv(1) = -uv(1)
     CALL TL_LENS_HC
     dp(1) = -dp(1)
-    dp = dp + pp
   END IF
+  dp = dp + pp
   coord(2:4:2) = coord(2:4:2) - eparm(7) * eparm(10) * dp
 !PRINT '(I4,6E16.4)', nturn, coord(1), -eparm(7) * eparm(10) * dp(1),&
 !                            coord(3), -eparm(7) * eparm(10) * dp(2),&
