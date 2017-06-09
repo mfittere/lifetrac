@@ -611,10 +611,11 @@ CASE (109) ! EXT_TLHC
   IF (rr > ra) THEN ! Main part of the lens - kick from doughnut
     dd = eparm(2) / r2
     IF (rr <= eparm(2)) dd = dd * (r2 / ra**2 - 1) / (eparm(6)**2 - 1)
-    coord(2:4:2) = coord(2:4:2) - eparm(1) * eparm(10) * dd * xy
+    coord(2:4:2) = coord(2:4:2) - eparm(1) * eparm(10) * dd * xy / (1 + coord(5) )
   END IF
-! map developed for r2=2.386 mm and 10 sig = 3.17 mm
-! 10 sig/r2 = 1.33
+! map developed for reference radius of 10 sig = 3.17 mm
+! assuming r2=2.386 mm
+! => 10 sig = 1.33*r2
   rb = 1.33_8 * eparm(2)
   IF (eparm(7) == 0.OR.rr > rb) RETURN  ! no mapping outside unit circle
   uv = xy / rb                ! normalize to 10sigma = 1.33 outer radius
