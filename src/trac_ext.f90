@@ -342,6 +342,8 @@ CASE ('EXT_TLHC'); elem_itp(numb) = 109
   IF (eparm(5) == 0) eparm(5) = 1
   IF (eparm(6) <= 1) eparm(6) = 1.5_8
 ! eparm(7) - if non-zero, account for entrance/exit e-beam bends (AV 10/7/2013)
+! map developed for reference radius of 10 sig = 3.17 mm
+! assuming r2=2.386 mm
 ! normalization of the kick is from FERMILAB-FN-0972-APC
 ! updated 3/31/2014 - made the kicks symplectic
   eparm(7) = eparm(7) * eparm(1) / eparm(2) * 7.233D-5 * 2.386_8
@@ -605,13 +607,13 @@ CASE (109) ! EXT_TLHC
   i = eparm(5)
   IF (MOD(nturn,i) /= 0) RETURN
   xy = coord(1:3:2) + eparm(3:4)
-  r2 = SUM  (xy**2)
+  r2 = SUM  (xy**2) ! x**2+y**2
   rr = SQRT (r2)
-  ra = eparm(2) / eparm(6)
+  ra = eparm(2) / eparm(6) !outer radius
   IF (rr > ra) THEN ! Main part of the lens - kick from doughnut
     dd = eparm(2) / r2
     IF (rr <= eparm(2)) dd = dd * (r2 / ra**2 - 1) / (eparm(6)**2 - 1)
-    coord(2:4:2) = coord(2:4:2) - eparm(1) * eparm(10) * dd * xy / (1 + coord(5) )
+    coord(2:4:2) = coord(2:4:2) - eparm(1) * eparm(10) * dd * xy / (1 + coord(6) )
   END IF
 ! map developed for reference radius of 10 sig = 3.17 mm
 ! assuming r2=2.386 mm
