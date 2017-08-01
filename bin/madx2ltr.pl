@@ -108,7 +108,7 @@ $fswitch=0;
 # solenoid, dipole edges, correctors (kickers), 
 # crab cavities (tkicker), elens (marker named HEBC)
 $nip=0; $ndrift=0; $nmult=0; $nzerom=0; $nrf=0; $nsol=0; $ndpdg=0;
-$nkick=0; $ncc=0;  $nelens=0; $nwire=0; $ncol=0;
+$nkick=0; $ncc=0;  $nelens=0; $nadt=0; $nwire=0; $ncol=0;
 while( <fpr1> ){
     @buf=split ;
     if( ($buf[0] eq '@') && ($buf[1] eq 'PARTICLE') ){ 
@@ -290,30 +290,36 @@ while( <fpr1> ){
 			       else{ $nkick=$nkick+1; }
        	                     }
 #                 TKICKER is CRAB cavity!
-            case "TKICKER"   { $name1[$n]="$buf[$iname].$n"; $nameCC[$ncc]=$name1[$n]; 
-                               $hcc[$ncc]=$buf[$ihkick]; $vcc[$ncc]=$buf[$ivkick];
-                               $betxcc[$ncc]=$buf[$ibetx]; $betycc[$ncc]=$buf[$ibety];
-                               $muxcc[$ncc]=$buf[$imux]; $muycc[$ncc]=$buf[$imuy];
-#                               if( $hcc[$ncc]==0 && $vcc[$ncc]==0 ){ $n=$n-1; }
-#                               else{
+      case "TKICKER"   { 
+												 if( $buf[$iname] =~ /ADT/ ){
+                         $name1[$n]="$buf[$iname].$n"; $nameADT[$nadt]=$name1[$n]; 
+												 $nadt=$nadt+1;
+												 } else {
+												 $name1[$n]="$buf[$iname].$n"; $nameCC[$ncc]=$name1[$n]; 
+                         $hcc[$ncc]=$buf[$ihkick]; $vcc[$ncc]=$buf[$ivkick];
+                         $betxcc[$ncc]=$buf[$ibetx]; $betycc[$ncc]=$buf[$ibety];
+                         $muxcc[$ncc]=$buf[$imux]; $muycc[$ncc]=$buf[$imuy];
+#                              if( $hcc[$ncc]==0 && $vcc[$ncc]==0 ){ $n=$n-1; }
+#            else{
 			       printf "CCAV: %s h=%g v=%g betx=%f bety=%f mux=%f muy=%f\n",
-                               $nameCC[$ncc],$hcc[$ncc],$vcc[$ncc],
-                               $betxcc[$ncc],$betycc[$ncc],$muxcc[$ncc],$muycc[$ncc];
-                               $ncc=$ncc+1;
+                         $nameCC[$ncc],$hcc[$ncc],$vcc[$ncc],
+                         $betxcc[$ncc],$betycc[$ncc],$muxcc[$ncc],$muycc[$ncc];
+                         $ncc=$ncc+1;
 #                               }
+                         }
                              }
-            case "MARKER"    { 
-                               if( $buf[$iname] =~ /HEBC/ ){
-                               $name1[$n]="$buf[$iname].$n"; $nameEL[$nelens]=$name1[$n]; 
-                               $nelens=$nelens+1;
-                               } else { $n=$n-1; }
+      case "MARKER"    { 
+                         if( $buf[$iname] =~ /HEBC/ ){
+                         $name1[$n]="$buf[$iname].$n"; $nameEL[$nelens]=$name1[$n]; 
+                         $nelens=$nelens+1;
+                         } else { $n=$n-1; }
 			     }
-            case "RCOLLIMATOR" { 
-                               if( $buf[$iname] =~ /TCP/ ){
-                               $name1[$n]="$buf[$iname].$n"; $nameCol[$ncol]=$name1[$n]; 
-                               $ncol=$ncol+1;
-                               } else { $n=$n-1; }
-                             }
+      case "RCOLLIMATOR" { 
+                         if( $buf[$iname] =~ /TCP/ ){
+                         $name1[$n]="$buf[$iname].$n"; $nameCol[$ncol]=$name1[$n]; 
+                         $ncol=$ncol+1;
+                         } else { $n=$n-1; }
+                       }
 	    case "MULTIPOLE" { $name1[$n]="$buf[$iname].$n"; $nameM[$nmult] = $name1[$n];
 			       $lrad[$nmult] = $buf[$ilrad]; $tiltM[$nmult] = $buf[$itilt];
 			       $xM[$nmult]   = $buf[$ix];    $yM[$nmult]    = $buf[$iy];
@@ -347,6 +353,7 @@ printf "Number of SOLENOIDs               : %d \n", $nsol;
 printf "Number of DIPEDGEs                : %d \n", $ndpdg;
 printf "Number of correctors (KICKER)     : %d \n", $nkick;
 printf "Number of Crab Cavities (TKICKER) : %d \n", $ncc;
+printf "Number of ADT kickers (TKICKER)  : %d \n", $nadt;
 printf "Number of Electron Lenses (HEBC)  : %d \n", $nelens;
 close(fpr1);
 #
@@ -789,6 +796,13 @@ for($i=0;$i<$ncc;$i++){
     printf fpw "Value_1: %G \n", $hcc[$i]/$sin_crab;
     printf fpw "Value_4: %G \n", $vcc[$i]/$sin_crab;
     printf fpw "Value_3: %G \n", $omegaCC;
+}
+#
+#--- ADT  ---------------------------------
+for($i=0;$i<$nadt;$i++){
+    printf fpw "\n# ".$nameADT[$i].": EXT_DNSE\n";
+    printf fpw "Value_1: 0 \n" ;
+    printf fpw "Value_2: 0 \n" ;
 }
 #
 #--- Electron Lens  ---------------------------------
